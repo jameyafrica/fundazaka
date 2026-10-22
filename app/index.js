@@ -30,10 +30,8 @@ export default function LaunchScreen() {
   if (!hydrated) return null;
 
   if (phase === 'routing') {
-    if (!user && !isGuest) return <Redirect href="/(auth)/login" />;
-    if (!onboardingCompleted) return <Redirect href="/onboarding" />;
-    if (resetPending) return <Redirect href="/reset-review" />;
-    return <Redirect href="/dashboard" />;
+    // TEMPORARY OVERRIDE: Bypasses cached state to let you test the new login layout
+    return <Redirect href="/(auth)/login" />;
   }
 
   return (
@@ -55,9 +53,11 @@ export default function LaunchScreen() {
                 <Text style={styles.logoBold}>zaka</Text>
               </Text>
             </View>
-            <View style={styles.bottomContent}>
-              <Text style={styles.poweredBy}>powered by</Text>
-              <SplashIconFnbBadgeBottomCenter width={55} height={55} />
+            
+            {/* EXACT DESIGNER SPECIFICATIONS APPLIED HERE */}
+            <Text style={styles.poweredByOpening}>powered by</Text>
+            <View style={styles.fnbBadgeWrapper}>
+              <SplashIconFnbBadgeBottomCenter width={34} height={34} />
             </View>
           </SafeAreaView>
         </Animated.View>
@@ -96,16 +96,16 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, width: '100%', zIndex: 1 },
   safeAreaWelcome: { flex: 1, width: '100%', justifyContent: 'center', padding: 32, zIndex: 1 },
   
-  // Perfectly centers the logo regardless of other content
   centerContent: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center' },
   logoText: { color: '#FFFFFF', fontSize: 70 },
   logoLight: { fontFamily: 'AdventPro-Light' },
   logoBold: { fontFamily: 'AdventPro-Bold' },
   
-  // Anchors strictly to the bottom
-  bottomContent: { position: 'absolute', bottom: 40, left: 0, right: 0, alignItems: 'center' },
-  poweredBy: { color: '#FFFFFF', fontFamily: 'AdventPro-Light', fontSize: 16, marginBottom: 8 },
+  // Exact coordinate positioning for Opening Screen
+  poweredByOpening: { position: 'absolute', bottom: 120, width: '100%', textAlign: 'center', color: '#FFFFFF', fontFamily: 'AdventPro-Light', fontSize: 16 },
+  fnbBadgeWrapper: { position: 'absolute', bottom: 77, left: 178 },
   
+  // Welcome Screen styling
   greetingText: { color: '#FFFFFF', fontFamily: 'Nunito-Light', fontSize: 64, lineHeight: 70 },
   bottomLeftContent: { position: 'absolute', bottom: 40, left: 32, flexDirection: 'row', alignItems: 'center' },
   logoTextSmall: { color: '#FFFFFF', fontSize: 30, marginLeft: 8 },
