@@ -46,3 +46,13 @@ assert.equal(next.resetDay, 15);
 assert.equal(isResetDue(15, next.cycleStartedAt, new Date(2026, 10, 20)), false);
 assert.equal(isResetDue(15, next.cycleStartedAt, new Date(2026, 11, 15, 8)), true);
 console.log('All action checks passed.');
+
+// routing
+import { getNextRoute } from '../utils/routing.js';
+const done = { user: { id: 'u' }, onboardingCompleted: true, tourCompleted: true, resetPending: false };
+assert.equal(getNextRoute({ ...done, user: null }), '/(auth)/login');
+assert.equal(getNextRoute({ ...done, onboardingCompleted: false }), '/(auth)/onboarding-expenses');
+assert.equal(getNextRoute({ ...done, tourCompleted: false }), '/(auth)/onboarding-tour');
+assert.equal(getNextRoute({ ...done, resetPending: true }), '/(auth)/onboarding-expenses?mode=reset');
+assert.equal(getNextRoute(done), '/(tabs)/home');
+console.log('All routing checks passed.');
