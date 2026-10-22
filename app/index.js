@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
   
   // Exact coordinate positioning for Opening Screen
   poweredByOpening: { position: 'absolute', bottom: 120, width: '100%', textAlign: 'center', color: '#FFFFFF', fontFamily: 'AdventPro-Light', fontSize: 16 },
-  fnbBadgeWrapper: { position: 'absolute', bottom: 77, left: 178 },
+  fnbBadgeWrapper: { position: 'absolute', bottom: 77, left: 0, right: 0, alignItems: 'center' }, 
   
   // Welcome Screen styling
   greetingText: { color: '#FFFFFF', fontFamily: 'Nunito-Light', fontSize: 64, lineHeight: 70 },

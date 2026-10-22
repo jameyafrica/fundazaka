@@ -1,75 +1,280 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+
+import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isResetDue } from '../utils/resetDate';
-
-const BudgetContext = createContext();
-
+import { getCategoryVisual } from '../utils/budgetMath';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import {
+  INCOME_SOURCES,
+  applyReset,
+  buildDemoState,
+  getTotals,
+  makeId,
+  validateSetup,
+  withSpent,
+} from '../utils/budgetActions';
+ 
+const STORAGE_KEY = 'fundazaka_state';
+ 
+const BudgetContext = createContext(null);
+ 
 const initialState = {
   hydrated: false,
   user: null,
+  ownerId: null, // id of the account whose data is stored on this phone
   isGuest: false,
   displayName: '',
   onboardingCompleted: false,
   tourCompleted: false,
   resetPending: false,
   resetDay: null,
-  categories: [],
-  transactions: [],
-  monthlyReports: [],
+  categories: [], // [{ key, targetAmount }]
+  transactions: [], // current cycle only
+  monthlyReports: [], // archived cycles, newest first
   cycleStartedAt: null,
 };
-
+ 
+function friendlyAuthError(error) {
+  const msg = String((error && error.message) || error || '').toLowerCase();
+  if (msg.includes('network') || msg.includes('fetch')) {
+    return 'No connection. Check your data or Wi-Fi and try again.';
+  }
+  if (msg.includes('invalid login')) return 'Wrong email or password.';
+  if (msg.includes('already registered')) return 'That email already has an account. Try logging in.';
+  if (msg.includes('rate limit')) return 'Too many attempts. Please wait a minute and try again.';
+  if (msg.includes('password')) return 'Your password must be at least 6 characters.';
+  return 'Something went wrong. Please try again.';
+}
+ 
+function checkCredentials(email, password) {
+  if (!isSupabaseConfigured) {
+    return 'Supabase is not set up yet. Add your keys to the .env file, or use Demo Mode.';
+  }
+  if (!/^\S+@\S+\.\S+$/.test(String(email || '').trim())) return 'Please enter a valid email address.';
+  if (String(password || '').length < 6) return 'Your password must be at least 6 characters.';
+  return null;
+}
+ 
+// Puts a signed-in Supabase user into state. If a different account used this
+// phone before, its local data is cleared so users never see each other's money.
+function withSession(prev, user, fallbackName) {
+  const sameOwner = !prev.ownerId || prev.ownerId === user.id;
+  const base = sameOwner ? prev : { ...initialState, hydrated: true };
+  return {
+    ...base,
+    user: { id: user.id, email: user.email },
+    ownerId: user.id,
+    isGuest: false,
+    displayName: (user.user_metadata && user.user_metadata.display_name) || base.displayName || fallbackName || '',
+  };
+}
+ 
+function parseAmount(value) {
+  const n = Number(String(value).replace(',', '.'));
+  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
+}
+ 
 export function BudgetProvider({ children }) {
   const [state, setState] = useState(initialState);
-
+ 
+  // Load saved state once. resetPending is always recomputed, never trusted from storage.
   useEffect(() => {
+    let cancelled = false;
     async function loadState() {
+      let next = { ...initialState, hydrated: true };
       try {
-        const saved = await AsyncStorage.getItem('fundazaka_state');
+        const saved = await AsyncStorage.getItem(STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
-          
-          // Check if reset is due upon loading
-          let pending = parsed.resetPending || false;
-          if (parsed.resetDay && parsed.cycleStartedAt) {
-             pending = pending || isResetDue(parsed.resetDay, parsed.cycleStartedAt);
-          }
-          
-          setState({ ...initialState, ...parsed, resetPending: pending, hydrated: true });
-        } else {
-          setState({ ...initialState, hydrated: true });
+          const due =
+            parsed.onboardingCompleted && isResetDue(parsed.resetDay, parsed.cycleStartedAt);
+          next = { ...initialState, ...parsed, resetPending: Boolean(due), hydrated: true };
         }
       } catch (e) {
-        console.error("Failed to load state", e);
-        setState({ ...initialState, hydrated: true });
+        console.error('Failed to load state', e);
       }
+      if (!cancelled) setState(next);
     }
     loadState();
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
-  const updateState = async (updates) => {
-    setState((prev) => {
-      const next = { ...prev, ...updates };
-      AsyncStorage.setItem('fundazaka_state', JSON.stringify(next)).catch(console.error);
-      return next;
-    });
-  };
-
-  const startGuest = () => updateState({ isGuest: true, user: { id: 'guest' } });
-  const saveSetup = (categories, resetDay) => updateState({ 
-    categories, 
-    resetDay, 
-    cycleStartedAt: new Date().toISOString(),
-    onboardingCompleted: true 
-  });
-  
-  // TODO: Add signIn, signOut, logIncome, payExpense, runReset
-
-  return (
-    <BudgetContext.Provider value={{ ...state, updateState, startGuest, saveSetup }}>
-      {children}
-    </BudgetContext.Provider>
+ 
+  // Save to the phone every time something changes (offline-first).
+  useEffect(() => {
+    if (!state.hydrated) return;
+    const { hydrated, ...persisted } = state;
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(persisted)).catch((e) =>
+      console.error('Failed to save state', e)
+    );
+  }, [state]);
+ 
+  const updateState = useCallback((updates) => {
+    setState((prev) => ({ ...prev, ...updates }));
+  }, []);
+ 
+  const startGuest = useCallback(() => {
+    setState((prev) => ({ ...prev, ...buildDemoState(new Date()) }));
+  }, []);
+ 
+  // Guest data is disposable, so signing out of Demo Mode wipes it.
+  // A real account only drops the session; its data stays on the phone.
+  const signOut = useCallback(async () => {
+    if (!state.isGuest && supabase) {
+      try {
+        await supabase.auth.signOut();
+      } catch (e) {
+        console.error('Supabase sign out failed', e);
+      }
+    }
+    setState((prev) =>
+      prev.isGuest ? { ...initialState, hydrated: true } : { ...prev, user: null, isGuest: false }
+    );
+  }, [state.isGuest]);
+ 
+  const signUp = useCallback(async ({ email, password, name = '' }) => {
+    const problem = checkCredentials(email, password);
+    if (problem) return { ok: false, error: problem };
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: { data: { display_name: name.trim() } },
+      });
+      if (error) return { ok: false, error: friendlyAuthError(error) };
+      if (!data.session || !data.user) {
+        return { ok: false, error: 'Please confirm your email, then log in. (Turn off "Confirm email" in Supabase for instant sign up.)' };
+      }
+      setState((prev) => withSession(prev, data.user, name.trim()));
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: friendlyAuthError(e) };
+    }
+  }, []);
+ 
+  const signIn = useCallback(async ({ email, password }) => {
+    const problem = checkCredentials(email, password);
+    if (problem) return { ok: false, error: problem };
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      if (error) return { ok: false, error: friendlyAuthError(error) };
+      setState((prev) => withSession(prev, data.user, ''));
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: friendlyAuthError(e) };
+    }
+  }, []);
+ 
+  const setDisplayName = useCallback((name) => {
+    setState((prev) => ({ ...prev, displayName: String(name || '').trim() }));
+  }, []);
+ 
+  // Onboarding: categories = [{ key, targetAmount }], resetDay = 1..30.
+  const saveSetup = useCallback((categories, resetDay) => {
+    const result = validateSetup(categories, resetDay);
+    if (!result.ok) return result;
+    setState((prev) => ({
+      ...prev,
+      categories: result.categories,
+      resetDay,
+      cycleStartedAt: new Date().toISOString(),
+      onboardingCompleted: true,
+      resetPending: false,
+    }));
+    return { ok: true };
+  }, []);
+ 
+  const completeTour = useCallback(() => {
+    setState((prev) => ({ ...prev, tourCompleted: true }));
+  }, []);
+ 
+  // Log irregular income: amount in Rand, source = 'work' | 'gift' | 'other'.
+  const logIncome = useCallback(({ amount, source, note = '' }) => {
+    const value = parseAmount(amount);
+    if (value <= 0) return { ok: false, error: 'Please enter an amount greater than R0.' };
+    if (!INCOME_SOURCES.includes(source)) {
+      return { ok: false, error: 'Please choose Work, Gift or Other.' };
+    }
+    setState((prev) => ({
+      ...prev,
+      transactions: [
+        ...prev.transactions,
+        { id: makeId(), type: 'income', source, amount: value, note, createdAt: new Date().toISOString() },
+      ],
+    }));
+    return { ok: true };
+  }, []);
+ 
+  // Pay an expense (or add savings) against one of the user's chosen categories.
+  const payExpense = useCallback(
+    ({ amount, categoryKey, note = '' }) => {
+      const value = parseAmount(amount);
+      if (value <= 0) return { ok: false, error: 'Please enter an amount greater than R0.' };
+      if (!state.categories.some((c) => c.key === categoryKey)) {
+        return { ok: false, error: 'Please choose one of your expenses.' };
+      }
+      setState((prev) => ({
+        ...prev,
+        transactions: [
+          ...prev.transactions,
+          { id: makeId(), type: 'expense', categoryKey, amount: value, note, createdAt: new Date().toISOString() },
+        ],
+      }));
+      return { ok: true };
+    },
+    [state.categories]
   );
+ 
+  // Monthly reset: archive this cycle, clear spending, apply the reviewed targets.
+  const runReset = useCallback(
+    (newCategories, newResetDay) => {
+      const result = validateSetup(newCategories, newResetDay);
+      if (!result.ok) return result;
+      setState((prev) => ({ ...prev, ...applyReset(prev, result.categories, newResetDay, new Date()) }));
+      return { ok: true };
+    },
+    []
+  );
+ 
+  // Derived values every screen needs, computed once here so all screens agree.
+  const derived = useMemo(() => {
+    const categoryRows = withSpent(state.categories, state.transactions).map((row) => ({
+      ...row,
+      visual: getCategoryVisual(row.key, row.spentAmount, row.targetAmount),
+    }));
+    return {
+      categoryRows,
+      totals: getTotals(state.categories, state.transactions),
+    };
+  }, [state.categories, state.transactions]);
+ 
+  const value = useMemo(
+    () => ({
+      ...state,
+      ...derived,
+      updateState,
+      startGuest,
+      signUp,
+      signIn,
+      signOut,
+      setDisplayName,
+      saveSetup,
+      completeTour,
+      logIncome,
+      payExpense,
+      runReset,
+    }),
+    [state, derived, updateState, startGuest, signUp, signIn, signOut, setDisplayName, saveSetup, completeTour, logIncome, payExpense, runReset]
+  );
+ 
+  return <BudgetContext.Provider value={value}>{children}</BudgetContext.Provider>;
 }
-
-export const useBudget = () => useContext(BudgetContext);
+ 
+export function useBudget() {
+  const ctx = useContext(BudgetContext);
+  if (!ctx) {
+    throw new Error('useBudget must be used inside <BudgetProvider>');
+  }
+  return ctx;
+}
