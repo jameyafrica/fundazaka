@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { BudgetProvider } from '../context/BudgetContext';
+import { theme } from '../constants/theme';
 
 // Keep the splash screen visible while we fetch fonts
 SplashScreen.preventAutoHideAsync();
@@ -38,7 +39,7 @@ function RootNavigation() {
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: '#041F21' }, // theme.colors.background
+        contentStyle: { backgroundColor: theme.colors.background },
       }}
     />
   );
