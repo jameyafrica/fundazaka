@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text } from 'react-native';
+import { StyleSheet, View, Text, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { Redirect } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useBudget } from '../context/BudgetContext';
 import { GREETINGS } from '../constants/greetings';
 
@@ -42,7 +41,11 @@ export default function LaunchScreen() {
       {phase === 'opening' && (
         <Animated.View style={styles.absoluteCenter} entering={FadeIn.duration(500)} exiting={FadeOut.duration(500)}>
           <View style={styles.backgroundLayer} pointerEvents="none">
-            <LinearGradient colors={['#0A3638', '#041F21']} style={StyleSheet.absoluteFill} />
+            <Image 
+              source={require('../assets/icons/background-opening.png')} 
+              style={StyleSheet.absoluteFill} 
+              resizeMode="cover" 
+            />
           </View>
           <SafeAreaView style={styles.safeArea}>
             <View style={styles.centerContent}>
@@ -62,7 +65,11 @@ export default function LaunchScreen() {
       {phase === 'welcome' && (
         <Animated.View style={styles.absoluteCenter} entering={FadeIn.duration(500)} exiting={FadeOut.duration(500)}>
           <View style={styles.backgroundLayer} pointerEvents="none">
-            <LinearGradient colors={['#0A3638', '#041F21']} style={StyleSheet.absoluteFill} />
+            <Image 
+              source={require('../assets/icons/background-splash.png')} 
+              style={StyleSheet.absoluteFill} 
+              resizeMode="cover" 
+            />
           </View>
           <SafeAreaView style={styles.safeAreaWelcome}>
             <Text style={styles.greetingText}>{greeting}</Text>
