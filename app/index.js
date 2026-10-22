@@ -45,6 +45,7 @@ export default function LaunchScreen() {
               source={require('../assets/icons/background-opening.png')} 
               style={StyleSheet.absoluteFill} 
               resizeMode="cover" 
+              blurRadius={17}
             />
           </View>
           <SafeAreaView style={styles.safeArea}>
@@ -69,6 +70,7 @@ export default function LaunchScreen() {
               source={require('../assets/icons/background-splash.png')} 
               style={StyleSheet.absoluteFill} 
               resizeMode="cover" 
+              blurRadius={17}
             />
           </View>
           <SafeAreaView style={styles.safeAreaWelcome}>
@@ -91,17 +93,22 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#041F21' },
   absoluteCenter: { ...StyleSheet.absoluteFillObject },
   backgroundLayer: { ...StyleSheet.absoluteFillObject, zIndex: -1, elevation: -1 },
-  safeArea: { flex: 1, justifyContent: 'space-between', alignItems: 'center', paddingVertical: 40, zIndex: 1 },
-  safeAreaWelcome: { flex: 1, justifyContent: 'center', padding: 32, zIndex: 1 },
-  centerContent: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  safeArea: { flex: 1, width: '100%', zIndex: 1 },
+  safeAreaWelcome: { flex: 1, width: '100%', justifyContent: 'center', padding: 32, zIndex: 1 },
+  
+  // Perfectly centers the logo regardless of other content
+  centerContent: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center' },
   logoText: { color: '#FFFFFF', fontSize: 70 },
-  logoLight: { fontFamily: 'AdventPro-Light', fontWeight: '300' },
-  logoBold: { fontFamily: 'AdventPro-Bold', fontWeight: 'bold' },
-  bottomContent: { alignItems: 'center', marginBottom: 20 },
+  logoLight: { fontFamily: 'AdventPro-Light' },
+  logoBold: { fontFamily: 'AdventPro-Bold' },
+  
+  // Anchors strictly to the bottom
+  bottomContent: { position: 'absolute', bottom: 40, left: 0, right: 0, alignItems: 'center' },
   poweredBy: { color: '#FFFFFF', fontFamily: 'AdventPro-Light', fontSize: 16, marginBottom: 8 },
+  
   greetingText: { color: '#FFFFFF', fontFamily: 'Nunito-Light', fontSize: 64, lineHeight: 70 },
   bottomLeftContent: { position: 'absolute', bottom: 40, left: 32, flexDirection: 'row', alignItems: 'center' },
   logoTextSmall: { color: '#FFFFFF', fontSize: 30, marginLeft: 8 },
-  logoLightSmall: { fontFamily: 'AdventPro-Light', fontWeight: '300' },
-  logoBoldSmall: { fontFamily: 'AdventPro-Bold', fontWeight: 'bold' }
+  logoLightSmall: { fontFamily: 'AdventPro-Light' },
+  logoBoldSmall: { fontFamily: 'AdventPro-Bold' }
 });
