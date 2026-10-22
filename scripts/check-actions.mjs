@@ -38,7 +38,7 @@ assert.ok(first.transactions.every((t) => new Date(t.createdAt) >= new Date(firs
 // reset archives and clears
 const next = applyReset(demo, demo.categories, 15, new Date(2026, 10, 15, 9));
 assert.equal(next.transactions.length, 0);
-assert.equal(next.monthlyReports.length, 1);
+assert.equal(next.monthlyReports.length, demo.monthlyReports.length + 1); // demo ships 2 past months
 assert.equal(next.monthlyReports[0].balance, 2350);
 assert.equal(next.monthlyReports[0].incomeBySource.work, 8850);
 assert.equal(next.monthlyReports[0].transactions.length, 14);

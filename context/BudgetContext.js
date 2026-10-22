@@ -2,6 +2,13 @@
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isResetDue } from '../utils/resetDate';
+import { COURSES } from '../constants/courses';
+import {
+  completeLesson as applyCompleteLesson,
+  initialLearning,
+  normalizeLearning,
+  submitQuiz as applySubmitQuiz,
+} from '../utils/learning';
 import { getCategoryVisual } from '../utils/budgetMath';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import {
@@ -32,6 +39,7 @@ const initialState = {
   transactions: [], // current cycle only
   monthlyReports: [], // archived cycles, newest first
   cycleStartedAt: null,
+  learning: initialLearning, // streak, lesson progress, quiz scores, badges
 };
  
 function friendlyAuthError(error) {
@@ -88,7 +96,13 @@ export function BudgetProvider({ children }) {
           const parsed = JSON.parse(saved);
           const due =
             parsed.onboardingCompleted && isResetDue(parsed.resetDay, parsed.cycleStartedAt);
-          next = { ...initialState, ...parsed, resetPending: Boolean(due), hydrated: true };
+          next = {
+            ...initialState,
+            ...parsed,
+            learning: normalizeLearning(parsed.learning),
+            resetPending: Boolean(due),
+            hydrated: true,
+          };
         }
       } catch (e) {
         console.error('Failed to load state', e);
@@ -237,6 +251,37 @@ export function BudgetProvider({ children }) {
     []
   );
  
+  // Learning hub: mark a lesson as read. Returns { ok, newBadges, alreadyDone } for the UI.
+  const completeLesson = useCallback(
+    (courseId, lessonId) => {
+      const now = new Date();
+      const result = applyCompleteLesson(state.learning, COURSES, courseId, lessonId, now);
+      if (!result.ok) return result;
+      setState((prev) => {
+        const applied = applyCompleteLesson(prev.learning, COURSES, courseId, lessonId, now);
+        return applied.ok ? { ...prev, learning: applied.learning } : prev;
+      });
+      return result;
+    },
+    [state.learning]
+  );
+
+  // Learning hub: score a finished quiz. answers = chosen option index per question.
+  // Returns { ok, result: { correct, total, percent, passed }, newBadges }.
+  const submitQuiz = useCallback(
+    (courseId, answers) => {
+      const now = new Date();
+      const result = applySubmitQuiz(state.learning, COURSES, courseId, answers, now);
+      if (!result.ok) return result;
+      setState((prev) => {
+        const applied = applySubmitQuiz(prev.learning, COURSES, courseId, answers, now);
+        return applied.ok ? { ...prev, learning: applied.learning } : prev;
+      });
+      return result;
+    },
+    [state.learning]
+  );
+
   // Derived values every screen needs, computed once here so all screens agree.
   const derived = useMemo(() => {
     const categoryRows = withSpent(state.categories, state.transactions).map((row) => ({
@@ -264,8 +309,10 @@ export function BudgetProvider({ children }) {
       logIncome,
       payExpense,
       runReset,
+      completeLesson,
+      submitQuiz,
     }),
-    [state, derived, updateState, startGuest, signUp, signIn, signOut, setDisplayName, saveSetup, completeTour, logIncome, payExpense, runReset]
+    [state, derived, updateState, startGuest, signUp, signIn, signOut, setDisplayName, saveSetup, completeTour, logIncome, payExpense, runReset, completeLesson, submitQuiz]
   );
  
   return <BudgetContext.Provider value={value}>{children}</BudgetContext.Provider>;

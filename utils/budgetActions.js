@@ -6,6 +6,8 @@
 //   report:      one archived month (see buildMonthlyReport)
 
 import { isValidResetDay } from './resetDate.js';
+import { COURSES } from '../constants/courses.js';
+import { localDateKey } from './learning.js';
 
 export const CATEGORY_KEYS = ['rent', 'transport', 'debit', 'groceries', 'savings'];
 export const INCOME_SOURCES = ['work', 'gift', 'other'];
@@ -111,6 +113,27 @@ export function applyReset(state, newCategories, newResetDay, now = new Date()) 
 
 // Realistic South African irregular income for the 1-tap Demo / Guest mode.
 // Shows every dashboard state: normal bands, OVER (transport) and the savings exception.
+// Builds one finished month for the demo. monthsBack: 1 = last month.
+// specs: [type, categoryKeyOrSource, amount, note, dayOfMonth]
+function pastMonth(now, monthsBack, specs) {
+  const start = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
+  const end = new Date(now.getFullYear(), now.getMonth() - monthsBack + 1, 1);
+  const transactions = specs.map(([type, key, amount, note, day]) => {
+    const createdAt = new Date(start.getFullYear(), start.getMonth(), day, 12).toISOString();
+    return type === 'income'
+      ? { id: makeId(), type, source: key, amount, note, createdAt }
+      : { id: makeId(), type, categoryKey: key, amount, note, createdAt };
+  });
+  const categories = sortCategories([
+    { key: 'rent', targetAmount: 3500 },
+    { key: 'transport', targetAmount: 1200 },
+    { key: 'debit', targetAmount: 950 },
+    { key: 'groceries', targetAmount: 1800 },
+    { key: 'savings', targetAmount: 500 },
+  ]);
+  return buildMonthlyReport(categories, transactions, start.toISOString(), end);
+}
+
 export function buildDemoState(now = new Date()) {
   const cycleStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const daysAgo = (n) => new Date(Math.max(cycleStart.getTime(), now.getTime() - n * 86400000)).toISOString();
@@ -153,6 +176,42 @@ export function buildDemoState(now = new Date()) {
       exp('groceries', 380, 'Pick n Pay', 2),
       exp('savings', 650, 'Emergency fund', 6),
     ],
-    monthlyReports: [],
+    // Two finished months so the Breakdown "Previous Months" toggle has real data to show.
+    monthlyReports: [
+      pastMonth(now, 1, [
+        ['income', 'work', 2100, 'Bolt trips', 4],
+        ['income', 'work', 1800, 'Weekend delivery gig', 11],
+        ['income', 'work', 1500, 'Maths tutoring', 17],
+        ['income', 'work', 1900, 'Bolt trips', 24],
+        ['income', 'gift', 400, 'From Gogo', 8],
+        ['expense', 'rent', 3500, 'September rent', 1],
+        ['expense', 'debit', 950, 'Phone contract', 2],
+        ['expense', 'transport', 900, 'Taxi fare', 9],
+        ['expense', 'transport', 250, 'Petrol', 20],
+        ['expense', 'groceries', 780, 'Shoprite', 6],
+        ['expense', 'groceries', 640, 'Pick n Pay', 19],
+        ['expense', 'savings', 400, 'Emergency fund', 12],
+      ]),
+      pastMonth(now, 2, [
+        ['income', 'work', 2500, 'Bolt trips', 5],
+        ['income', 'work', 1200, 'Weekend delivery gig', 13],
+        ['income', 'work', 1700, 'Bolt trips', 22],
+        ['income', 'other', 600, 'Sold old speaker', 15],
+        ['expense', 'rent', 3500, 'August rent', 1],
+        ['expense', 'debit', 950, 'Phone contract', 2],
+        ['expense', 'transport', 1100, 'Taxi fare', 10],
+        ['expense', 'groceries', 1250, 'Shoprite', 8],
+        ['expense', 'savings', 300, 'Emergency fund', 14],
+      ]),
+    ],
+    // A little learning progress so the hub is not empty in the demo.
+    learning: {
+      streak: 3,
+      bestStreak: 3,
+      lastActiveDate: localDateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 12)),
+      completedLessons: { [COURSES[0].id]: COURSES[0].lessons.slice(0, 2).map((l) => l.id) },
+      quizScores: {},
+      badges: ['first-lesson', 'streak-3'],
+    },
   };
 }
