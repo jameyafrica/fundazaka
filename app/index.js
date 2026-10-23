@@ -3,7 +3,7 @@ import { Image, StyleSheet, Text, View, useWindowDimensions } from 'react-native
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { Redirect } from 'expo-router';
 import { useBudget } from '../context/BudgetContext';
-import { GREETINGS } from '../constants/greetings';
+import { useT } from '../i18n/LanguageContext';
 import { getNextRoute } from '../utils/routing';
 
 const SPLASH_DURATION = 3000;
@@ -16,6 +16,7 @@ const DESIGN_H = 844;
 
 export default function LaunchScreen() {
   const { hydrated, user, onboardingCompleted, tourCompleted, resetPending } = useBudget();
+  const { lang, ready: languageReady, tList } = useT();
   const { width, height } = useWindowDimensions();
   const [phase, setPhase] = useState('opening');
   const [greeting, setGreeting] = useState('');
@@ -24,9 +25,13 @@ export default function LaunchScreen() {
   const sx = Math.min(Math.max(width / DESIGN_W, 0.85), 1.2);
   const sy = height / DESIGN_H;
 
+  // Picked once the saved language has loaded, so the greeting is in the user's language.
   useEffect(() => {
-    setGreeting(GREETINGS[Math.floor(Math.random() * GREETINGS.length)]);
-  }, []);
+    if (!languageReady) return;
+    const greetings = tList('greetings');
+    setGreeting(greetings[Math.floor(Math.random() * greetings.length)] || '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [languageReady, lang]);
 
   // Wait until saved data has loaded, so each splash screen always gets its full 3 seconds.
   useEffect(() => {

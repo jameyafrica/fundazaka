@@ -17,11 +17,14 @@ import { useBudget } from '../../context/BudgetContext';
 import { theme } from '../../constants/theme';
 import { useScale } from '../../hooks/useScale';
 import { getNextRoute } from '../../utils/routing';
+import { useT } from '../../i18n/LanguageContext';
+import LanguagePicker from '../../components/LanguagePicker';
 import WelcomeLogoFundazakaBottomLeft from '../../components/icons/WelcomeLogoFundazakaBottomLeft';
 
 export default function LoginScreen() {
   const router = useRouter();
   const scale = useScale();
+  const { t } = useT();
   const { user, onboardingCompleted, tourCompleted, resetPending, signIn, signUp, startGuest } = useBudget();
 
   const [mode, setMode] = useState('signup'); // 'signup' | 'login'
@@ -82,15 +85,16 @@ export default function LoginScreen() {
             showsVerticalScrollIndicator={false}
           >
             <View>
+              <LanguagePicker compact />
               <Text style={[styles.headline, { fontSize: scale(55), lineHeight: scale(60) }]}>
-                {isSignup ? 'New here?\nNo problem!' : 'Welcome\nback!'}
+                {isSignup ? t('login.headlineSignup') : t('login.headlineLogin')}
               </Text>
 
               <View style={styles.form}>
                 {isSignup && (
                   <TextInput
                     style={styles.input}
-                    placeholder="First name"
+                    placeholder={t('login.firstName')}
                     placeholderTextColor={theme.colors.textMuted}
                     value={name}
                     onChangeText={setName}
@@ -101,7 +105,7 @@ export default function LoginScreen() {
                 )}
                 <TextInput
                   style={styles.input}
-                  placeholder="Email"
+                  placeholder={t('login.email')}
                   placeholderTextColor={theme.colors.textMuted}
                   value={email}
                   onChangeText={setEmail}
@@ -114,7 +118,7 @@ export default function LoginScreen() {
                 <View style={styles.passwordRow}>
                   <TextInput
                     style={[styles.input, styles.passwordInput]}
-                    placeholder="Password (6+ characters)"
+                    placeholder={t('login.password')}
                     placeholderTextColor={theme.colors.textMuted}
                     value={password}
                     onChangeText={setPassword}
@@ -130,7 +134,7 @@ export default function LoginScreen() {
                     onPress={() => setShowPassword((v) => !v)}
                     hitSlop={8}
                   >
-                    <Text style={styles.showText}>{showPassword ? 'Hide' : 'Show'}</Text>
+                    <Text style={styles.showText}>{showPassword ? t('login.hide') : t('login.show')}</Text>
                   </Pressable>
                 </View>
 
@@ -144,13 +148,13 @@ export default function LoginScreen() {
                   {busy ? (
                     <ActivityIndicator color="#FFFFFF" />
                   ) : (
-                    <Text style={styles.primaryText}>{isSignup ? 'Sign up' : 'Log in'}</Text>
+                    <Text style={styles.primaryText}>{isSignup ? t('login.signUp') : t('login.logIn')}</Text>
                   )}
                 </Pressable>
 
                 <Pressable onPress={switchMode} disabled={busy} style={styles.linkButton}>
                   <Text style={styles.linkText}>
-                    {isSignup ? 'Already have an account? Log in' : 'New here? Sign up'}
+                    {isSignup ? t('login.haveAccount') : t('login.newHere')}
                   </Text>
                 </Pressable>
 
@@ -159,7 +163,7 @@ export default function LoginScreen() {
                   onPress={demo}
                   disabled={busy}
                 >
-                  <Text style={styles.demoText}>Quick Demo Login</Text>
+                  <Text style={styles.demoText}>{t('login.demo')}</Text>
                 </Pressable>
               </View>
             </View>
@@ -189,7 +193,7 @@ const styles = StyleSheet.create({
     paddingTop: theme.spacing.xl,
     paddingBottom: theme.spacing.lg,
   },
-  headline: { color: theme.colors.text, fontFamily: theme.fonts.bodyLight },
+  headline: { marginTop: theme.spacing.md, color: theme.colors.text, fontFamily: theme.fonts.bodyLight },
   form: { marginTop: theme.spacing.xl },
   input: {
     height: 52,

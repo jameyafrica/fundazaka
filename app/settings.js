@@ -6,27 +6,30 @@ import { useBudget } from '../context/BudgetContext';
 import { theme } from '../constants/theme';
 import ScreenBackground from '../components/ScreenBackground';
 import NavBar from '../components/NavBar';
+import LanguagePicker from '../components/LanguagePicker';
+import { useT } from '../i18n/LanguageContext';
 
 export default function SettingsScreen() {
   const { user, isGuest, displayName, resetDay, signOut } = useBudget();
+  const { t } = useT();
 
   if (!user) return <Redirect href="/(auth)/login" />;
 
   const confirmSignOut = () => {
     Alert.alert(
-      'Sign out',
-      isGuest ? 'Demo mode data will be cleared when you sign out.' : 'You can log back in at any time.',
+      t('settings.signOut'),
+      isGuest ? t('settings.signOutGuest') : t('settings.signOutUser'),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Sign out', style: 'destructive', onPress: signOut },
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('settings.signOut'), style: 'destructive', onPress: signOut },
       ]
     );
   };
 
   const rows = [
-    { label: 'Name', value: displayName || 'Not set' },
-    { label: 'Account', value: isGuest ? 'Demo mode' : user.email || 'Signed in' },
-    { label: 'Targets reset on', value: resetDay ? `Day ${resetDay} of the month` : 'Not set' },
+    { label: t('settings.name'), value: displayName || t('settings.notSet') },
+    { label: t('settings.account'), value: isGuest ? t('settings.demoMode') : user.email || t('settings.signedIn') },
+    { label: t('settings.resetOn'), value: resetDay ? t('settings.resetDay', { day: resetDay }) : t('settings.notSet') },
   ];
 
   return (
@@ -34,7 +37,7 @@ export default function SettingsScreen() {
       <ScreenBackground />
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <Text style={styles.title}>Settings</Text>
+          <Text style={styles.title}>{t('settings.title')}</Text>
 
           <View style={styles.card}>
             {rows.map((row, index) => (
@@ -47,12 +50,17 @@ export default function SettingsScreen() {
             ))}
           </View>
 
+          <View style={[styles.card, styles.languageCard]}>
+            <Text style={[styles.rowLabel, styles.languageLabel]}>{t('lang.label')}</Text>
+            <LanguagePicker />
+          </View>
+
           <Pressable
             style={({ pressed }) => [styles.signOut, pressed && styles.pressed]}
             onPress={confirmSignOut}
             accessibilityRole="button"
           >
-            <Text style={styles.signOutText}>Sign out</Text>
+            <Text style={styles.signOutText}>{t('settings.signOut')}</Text>
           </Pressable>
         </ScrollView>
       </SafeAreaView>
@@ -74,6 +82,8 @@ const styles = StyleSheet.create({
   },
   row: { padding: theme.spacing.md },
   rowBorder: { borderTopWidth: 1, borderTopColor: theme.colors.surfaceBorder },
+  languageCard: { marginTop: theme.spacing.md },
+  languageLabel: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.md },
   rowLabel: { color: theme.colors.textMuted, fontFamily: theme.fonts.bodySemiBold, fontSize: 12 },
   rowValue: { marginTop: 2, color: theme.colors.text, fontFamily: theme.fonts.bodyBold, fontSize: 16 },
   signOut: {

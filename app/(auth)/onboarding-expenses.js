@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useBudget } from '../../context/BudgetContext';
 import { theme } from '../../constants/theme';
-import { CATEGORY_META } from '../../constants/categories';
+import { useT } from '../../i18n/LanguageContext';
 import { useScale } from '../../hooks/useScale';
 import { CATEGORY_KEYS, MAX_CATEGORIES, MIN_CATEGORIES, validateSetup } from '../../utils/budgetActions';
 import { getNextRoute } from '../../utils/routing';
@@ -50,6 +50,7 @@ function cleanAmount(text) {
 export default function OnboardingExpensesScreen() {
   const router = useRouter();
   const scale = useScale();
+  const { t } = useT();
   const { mode } = useLocalSearchParams();
   const {
     user,
@@ -96,7 +97,7 @@ export default function OnboardingExpensesScreen() {
       setSelected(selected.filter((k) => k !== key));
       setError('');
     } else if (selected.length >= MAX_CATEGORIES) {
-      setError(`You can select a maximum of ${MAX_CATEGORIES} expenses.`);
+      setError(t('ob.maxError', { max: MAX_CATEGORIES }));
     } else {
       setSelected([...selected, key]);
       setError('');
@@ -106,7 +107,7 @@ export default function OnboardingExpensesScreen() {
   const onNext = () => {
     if (step === 'select') {
       if (orderedKeys.length < MIN_CATEGORIES) {
-        setError(`Please select at least ${MIN_CATEGORIES} expenses to continue.`);
+        setError(t('ob.minError', { min: MIN_CATEGORIES }));
         return;
       }
       setError('');
@@ -130,7 +131,7 @@ export default function OnboardingExpensesScreen() {
       }
     } else if (step === 'day') {
       if (!resetDay) {
-        setError('Please choose a reset day between 1 and 30.');
+        setError(t('ob.dayError'));
         return;
       }
       setError('');
@@ -160,16 +161,14 @@ export default function OnboardingExpensesScreen() {
 
   const shownStep = step === 'confirm' ? 'day' : step;
   const showBack = (shownStep === 'targets' && !isReset) || shownStep === 'day';
-  const headline = isReset ? 'New month' : 'Onboarding';
+  const headline = isReset ? t('ob.headlineReset') : t('ob.headline');
   const lastResetStep = isReset && shownStep === 'targets';
 
-  let subtitle = 'Please select the expenses that matter most to you.';
+  let subtitle = t('ob.subSelect');
   if (shownStep === 'targets') {
-    subtitle = isReset
-      ? 'A new month has started. Please set your targets for each expense.'
-      : 'Please allocate a monthly target to each expense.';
+    subtitle = isReset ? t('ob.subTargetsReset') : t('ob.subTargets');
   } else if (shownStep === 'day') {
-    subtitle = 'Please choose the day your targets reset each month.';
+    subtitle = t('ob.subDay');
   } else if (shownStep === 'success') {
     subtitle = '';
   }
@@ -177,7 +176,7 @@ export default function OnboardingExpensesScreen() {
   const renderSelect = () => (
     <>
       <Text style={styles.note}>
-        Minimum of {MIN_CATEGORIES}, maximum of {MAX_CATEGORIES}.
+        {t('ob.note', { min: MIN_CATEGORIES, max: MAX_CATEGORIES })}
       </Text>
       {CATEGORY_KEYS.map((key) => {
         const Icon = ICONS[key];
@@ -193,7 +192,7 @@ export default function OnboardingExpensesScreen() {
             <View style={styles.cardIcon}>
               <Icon width={36} height={36} />
             </View>
-            <Text style={styles.cardTitle}>{CATEGORY_META[key].title}</Text>
+            <Text style={styles.cardTitle}>{t(`cat.${key}.title`)}</Text>
             <View style={[styles.tick, isOn && styles.tickOn]}>
               {isOn && <Text style={styles.tickMark}>✓</Text>}
             </View>
@@ -211,8 +210,8 @@ export default function OnboardingExpensesScreen() {
           <View style={styles.cardIcon}>
             <Icon width={36} height={36} />
           </View>
-          <Text style={[styles.cardTitle, styles.cardTitleFlex]}>{CATEGORY_META[key].title}</Text>
-          <Text style={styles.targetLabel}>Target:</Text>
+          <Text style={[styles.cardTitle, styles.cardTitleFlex]}>{t(`cat.${key}.title`)}</Text>
+          <Text style={styles.targetLabel}>{t('ob.target')}</Text>
           <View style={styles.amountBox}>
             <Text style={styles.amountPrefix}>R</Text>
             <TextInput
@@ -252,7 +251,7 @@ export default function OnboardingExpensesScreen() {
         })}
       </View>
       <Text style={styles.note}>
-        Choosing 29 or 30? In February your reset falls on the last day of the month (28th, or 29th in a leap year).
+        {t('ob.dayNote')}
       </Text>
     </>
   );
@@ -260,7 +259,7 @@ export default function OnboardingExpensesScreen() {
   const renderSuccess = () => (
     <View style={styles.banner}>
       <CheckButtonIcon width={44} height={44} />
-      <Text style={styles.bannerText}>Successful!</Text>
+      <Text style={styles.bannerText}>{t('ob.success')}</Text>
     </View>
   );
 
@@ -277,7 +276,7 @@ export default function OnboardingExpensesScreen() {
           <View style={styles.header}>
             {showBack && (
               <Pressable onPress={onBack} hitSlop={12} style={styles.backButton}>
-                <Text style={styles.backText}>‹ Back</Text>
+                <Text style={styles.backText}>{t('common.back')}</Text>
               </Pressable>
             )}
             <Text style={[styles.headline, { fontSize: scale(55), lineHeight: scale(60) }]}>{headline}</Text>
@@ -304,7 +303,7 @@ export default function OnboardingExpensesScreen() {
                 onPress={onNext}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel={lastResetStep ? 'Save targets' : 'Next'}
+                accessibilityLabel={lastResetStep ? t('common.saveTargets') : t('common.next')}
               >
                 {lastResetStep ? (
                   <CheckButtonIcon width={64} height={64} />
@@ -320,15 +319,15 @@ export default function OnboardingExpensesScreen() {
       {step === 'confirm' && (
         <View style={styles.scrim}>
           <View style={styles.dialog}>
-            <Text style={styles.dialogTitle}>Save expenses and reset date?</Text>
+            <Text style={styles.dialogTitle}>{t('ob.confirmTitle')}</Text>
             <Text style={styles.dialogBody}>
-              {orderedKeys.length} expenses, targets reset on day {resetDay}.
+              {t('ob.confirmBody', { count: orderedKeys.length, day: resetDay })}
             </Text>
             <View style={styles.dialogButtons}>
-              <Pressable onPress={onCancel} hitSlop={8} accessibilityRole="button" accessibilityLabel="Cancel">
+              <Pressable onPress={onCancel} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('common.cancel')}>
                 <CloseButtonIcon width={56} height={56} />
               </Pressable>
-              <Pressable onPress={onAccept} hitSlop={8} accessibilityRole="button" accessibilityLabel="Save">
+              <Pressable onPress={onAccept} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('common.save')}>
                 <CheckButtonIcon width={56} height={56} />
               </Pressable>
             </View>
