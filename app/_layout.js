@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { BudgetProvider } from '../context/BudgetContext';
+import { checkSupabaseConnection } from '../lib/supabase';
 import { theme } from '../constants/theme';
 
 // Keep the splash screen visible while we fetch fonts
@@ -46,6 +47,15 @@ function RootNavigation() {
 }
 
 export default function RootLayout() {
+  // Dev only: prints whether Supabase is reachable in the Metro terminal.
+  useEffect(() => {
+    if (__DEV__) {
+      checkSupabaseConnection().then((r) =>
+        console.log('[Supabase]', r.ok ? 'OK:' : 'PROBLEM:', r.message)
+      );
+    }
+  }, []);
+
   return (
     <BudgetProvider>
       <StatusBar style="light" />
