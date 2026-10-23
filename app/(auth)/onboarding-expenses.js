@@ -27,7 +27,6 @@ import IconSaving from '../../components/icons/OnboardingExpensesIconSaving';
 import NextButtonIcon from '../../components/icons/OnboardingExpensesButtonNextBottomRight';
 import CheckButtonIcon from '../../components/icons/OnboardingConfirmButtonCheckCenter';
 import CloseButtonIcon from '../../components/icons/OnboardingConfirmIconCloseBottomRight';
-import TreeIllustration from '../../components/icons/OnboardingWelcomeIllustrationTreeBottomLeft';
 
 const ICONS = {
   rent: IconRent,
@@ -301,7 +300,6 @@ export default function OnboardingExpensesScreen() {
 
           {step !== 'success' && (
             <View style={styles.footer}>
-              <TreeIllustration width={90} height={90} />
               <Pressable
                 onPress={onNext}
                 hitSlop={8}
@@ -442,7 +440,7 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     paddingHorizontal: theme.spacing.xl,
     paddingBottom: theme.spacing.md,
   },

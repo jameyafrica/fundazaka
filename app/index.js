@@ -6,8 +6,6 @@ import { useBudget } from '../context/BudgetContext';
 import { GREETINGS } from '../constants/greetings';
 import { getNextRoute } from '../utils/routing';
 
-import SplashIconFnbBadgeBottomCenter from '../components/icons/SplashIconFnbBadgeBottomCenter';
-
 const SPLASH_DURATION = 3000;
 const BACKGROUND_BLUR = 17; // if the background looks blurrier than the mockup, try 8 (or 0 if the image is already blurred)
 
@@ -91,7 +89,9 @@ export default function LaunchScreen() {
 
           {/* FNB badge: mockup circle is 45 x 45 at x=168, y=722 */}
           <View style={[styles.badge, { left: 168 * sx, top: 722 * sy }]}>
-            <SplashIconFnbBadgeBottomCenter width={Math.round(45 * sx)} height={Math.round(45 * sx)} />
+            <View style={[styles.badgeCircle, { width: Math.round(45 * sx), height: Math.round(45 * sx) }]}>
+              <Text style={[styles.badgeText, { fontSize: Math.round(15 * sx) }]}>FNB</Text>
+            </View>
           </View>
         </Animated.View>
       )}
@@ -147,6 +147,14 @@ const styles = StyleSheet.create({
 
   poweredBy: { position: 'absolute', color: '#FFFFFF', fontFamily: 'AdventPro-Light' },
   badge: { position: 'absolute' },
+  badgeCircle: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  badgeText: { color: '#FFFFFF', fontFamily: 'Nunito-Bold' },
 
   greeting: { position: 'absolute', color: '#FFFFFF', fontFamily: 'Nunito-Light' },
 });

@@ -22,10 +22,8 @@ import GuideRobot from '../../components/icons/OnboardingGuideIconRobot';
 import GuideBreakdown from '../../components/icons/OnboardingGuideIconBreakdown';
 import GuideCalculator from '../../components/icons/OnboardingGuideIconCalculator';
 import GuideGraduation from '../../components/icons/OnboardingGuideIconGraduationFinancialSmart';
-import GuideAvatar from '../../components/icons/OnboardingGuideAvatarUserTopLeftEmpowered';
 import NextButtonIcon from '../../components/icons/OnboardingExpensesButtonNextBottomRight';
 import CheckButtonIcon from '../../components/icons/OnboardingConfirmButtonCheckCenter';
-import TreeIllustration from '../../components/icons/OnboardingWelcomeIllustrationTreeBottomLeft';
 
 const CATEGORY_ICONS = {
   rent: IconRent,
@@ -194,8 +192,7 @@ export default function OnboardingTourScreen() {
   const renderLearn = () => (
     <View style={styles.panel}>
       <View style={styles.learnHeader}>
-        <GuideAvatar width={72} height={72} />
-        <GuideGraduation width={44} height={44} />
+        <GuideGraduation width={72} height={72} />
       </View>
       <View style={styles.chipRow}>
         {COURSE_NAMES.map((name) => (
@@ -250,7 +247,6 @@ export default function OnboardingTourScreen() {
         </ScrollView>
 
         <View style={styles.footer}>
-          <TreeIllustration width={90} height={90} />
           <Pressable
             onPress={onNext}
             hitSlop={8}
@@ -378,11 +374,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   chipText: { color: theme.colors.text, fontFamily: theme.fonts.bodyBold, fontSize: 12 },
-  learnHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  learnHeader: { alignItems: 'center' },
   footer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     paddingHorizontal: theme.spacing.xl,
     paddingBottom: theme.spacing.md,
   },
