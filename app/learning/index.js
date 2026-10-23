@@ -15,6 +15,7 @@ import {
 } from '../../utils/learning';
 import ScreenBackground from '../../components/ScreenBackground';
 import NavBar from '../../components/NavBar';
+import { CourseIcon, StreakIcon } from '../../components/LearningIcons';
 
 function courseAction(progress) {
   if (progress.complete) return 'Review';
@@ -66,7 +67,9 @@ export default function LearningHubScreen() {
           <Text style={styles.subtitle}>Short lessons that work offline. No data needed.</Text>
 
           <View style={styles.streakCard}>
-            <Text style={styles.streakFlame}>{streak > 0 ? '\u{1F525}' : '\u2728'}</Text>
+            <View style={styles.iconBox}>
+              <StreakIcon size={48} active={streak > 0} />
+            </View>
             <View style={styles.streakText}>
               <Text style={[styles.streakNumber, { fontSize: fs(30) }]}>
                 {streak} {streak === 1 ? 'day' : 'days'}
@@ -115,7 +118,9 @@ export default function LearningHubScreen() {
                 accessibilityLabel={`${course.title}. ${progress.done} of ${progress.total} lessons done.`}
               >
                 <View style={styles.courseTop}>
-                  <Text style={styles.courseIcon}>{course.icon}</Text>
+                  <View style={styles.iconBox}>
+                    <CourseIcon courseId={course.id} fallback={course.icon} size={48} />
+                  </View>
                   <View style={styles.courseText}>
                     <Text style={styles.courseTitle}>{course.title}</Text>
                     <Text style={styles.courseTagline}>{course.tagline}</Text>
@@ -180,7 +185,7 @@ const styles = StyleSheet.create({
     padding: 18,
     gap: 16,
   },
-  streakFlame: { fontSize: 44 },
+  iconBox: { width: 56, alignItems: 'center', justifyContent: 'center' },
   streakText: { flex: 1 },
   streakNumber: { color: theme.colors.text, fontFamily: theme.fonts.bodyBold },
   streakMessage: { color: theme.colors.textMuted, fontFamily: theme.fonts.bodyLight, fontSize: 14, marginTop: 2 },
@@ -226,7 +231,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   courseTop: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 14 },
-  courseIcon: { fontSize: 34 },
   courseText: { flex: 1 },
   courseTitle: { color: theme.colors.text, fontFamily: theme.fonts.bodyBold, fontSize: 17 },
   courseTagline: { color: theme.colors.textMuted, fontFamily: theme.fonts.bodyLight, fontSize: 13, marginTop: 2 },

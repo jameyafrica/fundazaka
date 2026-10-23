@@ -14,6 +14,7 @@ import {
   isLessonDone,
 } from '../../utils/learning';
 import ScreenBackground from '../../components/ScreenBackground';
+import { CourseIcon } from '../../components/LearningIcons';
 
 export default function CourseScreen() {
   const router = useRouter();
@@ -77,7 +78,9 @@ export default function CourseScreen() {
   const renderList = () => (
     <>
       <View style={styles.courseHeader}>
-        <Text style={styles.courseIcon}>{course.icon}</Text>
+        <View style={styles.courseIconBox}>
+          <CourseIcon courseId={course.id} fallback={course.icon} size={56} />
+        </View>
         <Text style={[styles.courseTitle, { fontSize: fs(24) }]}>{course.title}</Text>
         <Text style={styles.courseTagline}>{course.tagline}</Text>
         <View style={styles.barTrack}>
@@ -252,7 +255,7 @@ const styles = StyleSheet.create({
   headerTitle: { flex: 1, textAlign: 'center', color: theme.colors.textMuted, fontFamily: theme.fonts.bodySemiBold, fontSize: 15 },
 
   courseHeader: { alignItems: 'center', paddingVertical: 8 },
-  courseIcon: { fontSize: 48, marginBottom: 8 },
+  courseIconBox: { marginBottom: 8 },
   courseTitle: { color: theme.colors.text, fontFamily: theme.fonts.bodyBold, textAlign: 'center' },
   courseTagline: {
     color: theme.colors.textMuted,
