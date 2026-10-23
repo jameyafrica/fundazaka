@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isResetDue } from '../utils/resetDate';
@@ -10,7 +9,7 @@ import {
   submitQuiz as applySubmitQuiz,
 } from '../utils/learning';
 import { getCategoryVisual } from '../utils/budgetMath';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, hasSupabaseSession } from '../lib/supabase';
 import {
   INCOME_SOURCES,
   applyReset,
@@ -22,6 +21,9 @@ import {
 } from '../utils/budgetActions';
  
 const STORAGE_KEY = 'fundazaka_state';
+
+// Dev only: set EXPO_PUBLIC_RESET_ON_LAUNCH=true in .env to start from a clean slate every launch.
+const RESET_ON_LAUNCH = process.env.EXPO_PUBLIC_RESET_ON_LAUNCH === 'true';
  
 const BudgetContext = createContext(null);
  
@@ -91,18 +93,27 @@ export function BudgetProvider({ children }) {
     async function loadState() {
       let next = { ...initialState, hydrated: true };
       try {
-        const saved = await AsyncStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          const due =
-            parsed.onboardingCompleted && isResetDue(parsed.resetDay, parsed.cycleStartedAt);
-          next = {
-            ...initialState,
-            ...parsed,
-            learning: normalizeLearning(parsed.learning),
-            resetPending: Boolean(due),
-            hydrated: true,
-          };
+        if (RESET_ON_LAUNCH) {
+          await AsyncStorage.removeItem(STORAGE_KEY);
+          if (supabase) await supabase.auth.signOut({ scope: 'local' });
+        } else {
+          const saved = await AsyncStorage.getItem(STORAGE_KEY);
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            const due =
+              parsed.onboardingCompleted && isResetDue(parsed.resetDay, parsed.cycleStartedAt);
+            next = {
+              ...initialState,
+              ...parsed,
+              learning: normalizeLearning(parsed.learning),
+              resetPending: Boolean(due),
+              hydrated: true,
+            };
+            // A saved real account only counts if its Supabase login is still on the phone.
+            if (next.user && !next.isGuest && !(await hasSupabaseSession())) {
+              next = { ...next, user: null };
+            }
+          }
         }
       } catch (e) {
         console.error('Failed to load state', e);
