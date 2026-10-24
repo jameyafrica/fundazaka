@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -63,7 +64,14 @@ export default function LoginScreen() {
   const demo = () => {
     if (busy) return;
     setError('');
-    startGuest();
+    const result = startGuest();
+    if (!result.ok) {
+      // A previous login's data is still on this phone and the demo would erase it, so ask first.
+      Alert.alert(t('login.demoReplaceTitle'), t('login.demoReplaceBody'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('login.demoReplaceConfirm'), style: 'destructive', onPress: () => startGuest({ replace: true }) },
+      ]);
+    }
   };
 
   return (
