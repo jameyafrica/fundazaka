@@ -24,7 +24,7 @@ export const MOTIVATION = {
 };
 
 // seed is a fixed random number per screen visit, so the line does not flicker.
-export function pickMotivation(kind, seed) {
-  const list = MOTIVATION[kind] || MOTIVATION.default;
+export function pickMotivation(kind, seed, lists = MOTIVATION) {
+  const list = lists[kind] || lists.default || MOTIVATION.default;
   return list[Math.abs(seed) % list.length];
 }

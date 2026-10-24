@@ -5,8 +5,8 @@ import Animated, { FadeInRight } from 'react-native-reanimated';
 import { Redirect } from 'expo-router';
 import { useBudget } from '../../context/BudgetContext';
 import { theme } from '../../constants/theme';
-import { CATEGORY_META } from '../../constants/categories';
 import { COURSE_NAMES, SAMPLE_PILLS, TOOLKIT, TOUR_STEPS } from '../../constants/tourSteps';
+import { useT } from '../../i18n/LanguageContext';
 import { getCategoryVisual } from '../../utils/budgetMath';
 import { formatRand } from '../../utils/format';
 import { getNextRoute } from '../../utils/routing';
@@ -22,10 +22,8 @@ import GuideRobot from '../../components/icons/OnboardingGuideIconRobot';
 import GuideBreakdown from '../../components/icons/OnboardingGuideIconBreakdown';
 import GuideCalculator from '../../components/icons/OnboardingGuideIconCalculator';
 import GuideGraduation from '../../components/icons/OnboardingGuideIconGraduationFinancialSmart';
-import GuideAvatar from '../../components/icons/OnboardingGuideAvatarUserTopLeftEmpowered';
 import NextButtonIcon from '../../components/icons/OnboardingExpensesButtonNextBottomRight';
 import CheckButtonIcon from '../../components/icons/OnboardingConfirmButtonCheckCenter';
-import TreeIllustration from '../../components/icons/OnboardingWelcomeIllustrationTreeBottomLeft';
 
 const CATEGORY_ICONS = {
   rent: IconRent,
@@ -36,22 +34,25 @@ const CATEGORY_ICONS = {
 };
 
 const TOOL_ICONS = { ai: GuideRobot, breakdown: GuideBreakdown, calculator: GuideCalculator };
-const INCOME_SOURCES_LABELS = ['Work', 'Gift', 'Other'];
+const INCOME_SOURCES_KEYS = ['income.work', 'income.gift', 'income.other'];
 
-function describePill(sample, visual) {
-  const title = CATEGORY_META[sample.key].title;
+function describePill(t, sample, visual) {
+  const title = t(`cat.${sample.key}.title`);
+  const spent = formatRand(sample.spent);
+  const target = formatRand(sample.target);
   if (visual.variant === 'over') {
-    return `${title}: ${formatRand(visual.overAmount)} over your target. Time to slow down!`;
+    return t('tour.pillOver', { title, amount: formatRand(visual.overAmount) });
   }
   if (visual.variant === 'savings') {
-    return `${title}: ${formatRand(sample.spent)} of ${formatRand(sample.target)}. Beating a savings target is always a win!`;
+    return t('tour.pillSavings', { title, spent, target });
   }
-  const done = visual.remainingAmount === 0 ? ' Target reached!' : '';
-  return `${title}: ${formatRand(sample.spent)} of ${formatRand(sample.target)} so far.${done}`;
+  const key = visual.remainingAmount === 0 ? 'tour.pillReached' : 'tour.pillNormal';
+  return t(key, { title, spent, target });
 }
 
 export default function OnboardingTourScreen() {
   const { user, onboardingCompleted, tourCompleted, resetPending, completeTour } = useBudget();
+  const { t } = useT();
   const [step, setStep] = useState(0);
   const [pillKey, setPillKey] = useState(null);
   const [toolKey, setToolKey] = useState(null);
@@ -74,18 +75,18 @@ export default function OnboardingTourScreen() {
 
   const renderZaks = () => (
     <View style={styles.panel}>
-      <Text style={styles.exampleTag}>Example</Text>
+      <Text style={styles.exampleTag}>{t('tour.example')}</Text>
       <View style={styles.zaksRow}>
         <View style={styles.zaksColumn}>
-          <Text style={styles.zaksLabel}>Zaks</Text>
+          <Text style={styles.zaksLabel}>{t('hero.zaks')}</Text>
           <Text style={styles.zaksValue}>{formatRand(4500)}</Text>
         </View>
         <View style={styles.zaksColumn}>
-          <Text style={styles.zaksLabel}>Target</Text>
+          <Text style={styles.zaksLabel}>{t('hero.target')}</Text>
           <Text style={styles.zaksValue}>{formatRand(6000)}</Text>
         </View>
         <View style={styles.zaksColumn}>
-          <Text style={styles.zaksLabel}>Balance</Text>
+          <Text style={styles.zaksLabel}>{t('hero.balance')}</Text>
           <Text style={styles.zaksValue}>{formatRand(1500)}</Text>
         </View>
       </View>
@@ -120,7 +121,7 @@ export default function OnboardingTourScreen() {
                 style={styles.pillColumn}
                 onPress={() => setPillKey(sample.key)}
                 accessibilityRole="button"
-                accessibilityLabel={CATEGORY_META[sample.key].title}
+                accessibilityLabel={t(`cat.${sample.key}.title`)}
               >
                 <View
                   style={[
@@ -133,13 +134,13 @@ export default function OnboardingTourScreen() {
                     <Icon width={30} height={30} />
                   </View>
                 </View>
-                <Text style={styles.pillLabel}>{CATEGORY_META[sample.key].shortTitle}</Text>
+                <Text style={styles.pillLabel}>{t(`cat.${sample.key}.short`)}</Text>
               </Pressable>
             );
           })}
         </View>
         <Text style={styles.caption}>
-          {selectedSample ? describePill(selectedSample, selectedVisual) : 'Tap a pill to try it.'}
+          {selectedSample ? describePill(t, selectedSample, selectedVisual) : t('tour.tapPill')}
         </Text>
       </View>
     );
@@ -150,17 +151,17 @@ export default function OnboardingTourScreen() {
       <View style={styles.tileRow}>
         <View style={styles.tile}>
           <GuideIncome width={34} height={34} />
-          <Text style={styles.tileTitle}>Add Income</Text>
+          <Text style={styles.tileTitle}>{t('home.addIncome')}</Text>
         </View>
         <View style={styles.tile}>
           <GuideExpenses width={34} height={34} />
-          <Text style={styles.tileTitle}>Pay Expense</Text>
+          <Text style={styles.tileTitle}>{t('home.payExpense')}</Text>
         </View>
       </View>
       <View style={styles.chipRow}>
-        {INCOME_SOURCES_LABELS.map((label) => (
-          <View key={label} style={styles.chip}>
-            <Text style={styles.chipText}>{label}</Text>
+        {INCOME_SOURCES_KEYS.map((key) => (
+          <View key={key} style={styles.chip}>
+            <Text style={styles.chipText}>{t(key)}</Text>
           </View>
         ))}
       </View>
@@ -179,23 +180,22 @@ export default function OnboardingTourScreen() {
               style={[styles.tile, isOn && styles.tileOn]}
               onPress={() => setToolKey(key)}
               accessibilityRole="button"
-              accessibilityLabel={TOOLKIT[key].title}
+              accessibilityLabel={t(`tour.tool.${key}.title`)}
             >
               <Icon width={34} height={34} />
-              <Text style={styles.tileTitle}>{TOOLKIT[key].title}</Text>
+              <Text style={styles.tileTitle}>{t(`tour.tool.${key}.title`)}</Text>
             </Pressable>
           );
         })}
       </View>
-      <Text style={styles.caption}>{toolKey ? TOOLKIT[toolKey].text : 'Tap a helper to meet it.'}</Text>
+      <Text style={styles.caption}>{toolKey ? t(`tour.tool.${toolKey}.text`) : t('tour.tapHelper')}</Text>
     </View>
   );
 
   const renderLearn = () => (
     <View style={styles.panel}>
       <View style={styles.learnHeader}>
-        <GuideAvatar width={72} height={72} />
-        <GuideGraduation width={44} height={44} />
+        <GuideGraduation width={72} height={72} />
       </View>
       <View style={styles.chipRow}>
         {COURSE_NAMES.map((name) => (
@@ -221,13 +221,13 @@ export default function OnboardingTourScreen() {
         <View style={styles.topRow}>
           {step > 0 ? (
             <Pressable onPress={() => setStep(step - 1)} hitSlop={12}>
-              <Text style={styles.topLink}>‹ Back</Text>
+              <Text style={styles.topLink}>{t('common.back')}</Text>
             </Pressable>
           ) : (
             <View />
           )}
           <Pressable onPress={completeTour} hitSlop={12}>
-            <Text style={styles.topLink}>Skip</Text>
+            <Text style={styles.topLink}>{t('common.skip')}</Text>
           </Pressable>
         </View>
 
@@ -243,19 +243,18 @@ export default function OnboardingTourScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Animated.View key={current.id} entering={FadeInRight.duration(300)}>
-            <Text style={styles.title}>{current.title}</Text>
-            <Text style={styles.body}>{current.body}</Text>
+            <Text style={styles.title}>{t(`tour.${current.id}.title`)}</Text>
+            <Text style={styles.body}>{t(`tour.${current.id}.body`)}</Text>
             {visuals[current.id]()}
           </Animated.View>
         </ScrollView>
 
         <View style={styles.footer}>
-          <TreeIllustration width={90} height={90} />
           <Pressable
             onPress={onNext}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel={isLast ? 'Finish tour' : 'Next'}
+            accessibilityLabel={isLast ? t('common.finishTour') : t('common.next')}
           >
             {isLast ? <CheckButtonIcon width={64} height={64} /> : <NextButtonIcon width={64} height={64} />}
           </Pressable>
@@ -378,11 +377,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   chipText: { color: theme.colors.text, fontFamily: theme.fonts.bodyBold, fontSize: 12 },
-  learnHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  learnHeader: { alignItems: 'center' },
   footer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     paddingHorizontal: theme.spacing.xl,
     paddingBottom: theme.spacing.md,
   },

@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect, useRouter } from 'expo-router';
 import { useBudget } from '../../context/BudgetContext';
 import { theme } from '../../constants/theme';
-import { CATEGORY_META } from '../../constants/categories';
+import { useT } from '../../i18n/LanguageContext';
 import { pickMotivation } from '../../constants/motivation';
 import { useScale } from '../../hooks/useScale';
 import { formatRand } from '../../utils/format';
@@ -27,6 +27,7 @@ import EducationIcon from '../../components/icons/DashboardIconEducationCardMidd
 export default function HomeScreen() {
   const router = useRouter();
   const scale = useScale();
+  const { t, tList } = useT();
   const { user, displayName, onboardingCompleted, tourCompleted, resetPending, categoryRows, totals } = useBudget();
   const [selectedKey, setSelectedKey] = useState(null); // null = "Total" view
   const seed = useRef(Math.floor(Math.random() * 1000)).current;
@@ -40,9 +41,15 @@ export default function HomeScreen() {
 
   const selected = categoryRows.find((row) => row.key === selectedKey) || null;
   const hero = getHeroState(selected, totals);
-  const motivation = pickMotivation(hero.motivationKind, seed);
+  const motivation = pickMotivation(hero.motivationKind, seed, {
+    default: tList('motivation.default'),
+    reached: tList('motivation.reached'),
+    over: tList('motivation.over'),
+    savings: tList('motivation.savings'),
+  });
   const isSavings = selected && selected.key === 'savings';
-  const expenseLabel = isSavings ? 'Add Savings' : 'Pay Expense';
+  const expenseLabel = isSavings ? t('home.addSavings') : t('home.payExpense');
+  const catTitle = (key) => t(`cat.${key}.title`);
 
   const goAddExpense = () =>
     router.push(selected ? `/add-transaction?type=expense&category=${selected.key}` : '/add-transaction?type=expense');
@@ -74,7 +81,7 @@ export default function HomeScreen() {
           <View style={styles.header}>
             <Avatar width={44} height={44} />
             <Text style={styles.welcome} numberOfLines={1}>
-              {displayName ? `Welcome back, ${displayName}!` : 'Welcome back!'}
+              {displayName ? t('home.welcome', { name: displayName }) : t('home.welcomeNoName')}
             </Text>
           </View>
 
@@ -84,11 +91,11 @@ export default function HomeScreen() {
                 <Text style={styles.heroTitle}>Zak-Buckz</Text>
                 <View style={styles.statsRow}>
                   <View style={styles.stat}>
-                    <Text style={[styles.statLabel, { fontSize: fs(10) }]}>{hero.primaryLabel}</Text>
+                    <Text style={[styles.statLabel, { fontSize: fs(10) }]}>{t(hero.primaryLabelKey || 'hero.balance')}</Text>
                     <Text style={styles.statValue}>{formatRand(hero.primaryValue)}</Text>
                   </View>
                   <View style={styles.stat}>
-                    <Text style={[styles.statLabel, { fontSize: fs(10) }]}>Target</Text>
+                    <Text style={[styles.statLabel, { fontSize: fs(10) }]}>{t('hero.target')}</Text>
                     <Text style={styles.statValue}>{formatRand(hero.targetValue)}</Text>
                   </View>
                 </View>
@@ -99,7 +106,7 @@ export default function HomeScreen() {
                 ) : (
                   <FnbLogo width={64} height={64} />
                 )}
-                {selected && <Text style={styles.heroIconLabel}>{CATEGORY_META[selected.key].title}</Text>}
+                {selected && <Text style={styles.heroIconLabel}>{catTitle(selected.key)}</Text>}
               </View>
             </View>
 
@@ -121,10 +128,10 @@ export default function HomeScreen() {
                 style={({ pressed }) => [styles.addZaks, pressed && styles.pressed]}
                 onPress={goAddExpense}
                 accessibilityRole="button"
-                accessibilityLabel={`Add Zaks to ${CATEGORY_META[selected.key].title}`}
+                accessibilityLabel={t('home.addZaksTo', { title: catTitle(selected.key) })}
               >
                 <AddZaksIcon width={22} height={22} />
-                <Text style={styles.addZaksText}>Add Zaks</Text>
+                <Text style={styles.addZaksText}>{t('home.addZaks')}</Text>
               </Pressable>
             )}
           </View>
@@ -141,7 +148,7 @@ export default function HomeScreen() {
                   onPress={() => setSelectedKey(isTotal || isOn ? null : item.key)}
                   accessibilityRole="button"
                   accessibilityState={{ selected: isOn }}
-                  accessibilityLabel={isTotal ? 'Total' : CATEGORY_META[item.key].title}
+                  accessibilityLabel={isTotal ? t('home.total') : catTitle(item.key)}
                 >
                   <View style={[styles.pill, isOn && (over ? styles.pillOnOver : styles.pillOn)]}>
                     {isTotal ? (
@@ -151,7 +158,7 @@ export default function HomeScreen() {
                     )}
                   </View>
                   <Text style={[styles.pillLabel, { fontSize: fs(10) }]} numberOfLines={1}>
-                    {isTotal ? 'Total' : CATEGORY_META[item.key].shortTitle}
+                    {isTotal ? t('home.total') : t(`cat.${item.key}.short`)}
                   </Text>
                 </Pressable>
               );
@@ -165,7 +172,7 @@ export default function HomeScreen() {
               accessibilityRole="button"
             >
               <IncomeIcon width={32} height={32} />
-              <Text style={styles.actionText}>Add Income</Text>
+              <Text style={styles.actionText}>{t('home.addIncome')}</Text>
             </Pressable>
             <Pressable
               style={({ pressed }) => [styles.actionCard, pressed && styles.actionPressed]}
@@ -178,18 +185,18 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.toolRow}>
-            {renderTool('AI Bot', AiBotIcon, '/ai-bot')}
-            {renderTool('Breakdown', BreakdownIcon, '/breakdown')}
-            {renderTool('Calculator', CalculatorIcon, '/calculator')}
+            {renderTool(t('home.aiBot'), AiBotIcon, '/ai-bot')}
+            {renderTool(t('home.breakdown'), BreakdownIcon, '/breakdown')}
+            {renderTool(t('home.calculator'), CalculatorIcon, '/calculator')}
           </View>
 
           <Pressable
             style={({ pressed }) => [styles.learnCard, pressed && styles.actionPressed]}
             onPress={() => router.push('/learning')}
             accessibilityRole="button"
-            accessibilityLabel="Learning pathways"
+            accessibilityLabel={t('home.learnA11y')}
           >
-            <Text style={styles.learnText}>Let's get financially smart!</Text>
+            <Text style={styles.learnText}>{t('home.learn')}</Text>
             <EducationIcon width={44} height={44} />
           </Pressable>
         </ScrollView>

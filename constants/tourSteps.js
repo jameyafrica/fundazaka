@@ -32,7 +32,11 @@ export const TOUR_STEPS = [
 ];
 
 export const TOOLKIT = {
-  ai: { title: 'AI Bot', text: 'Your money assistant. It is coming soon, so watch this space!' },
+  ai: {
+    title: 'AI Bot',
+    text:
+      'Meet Zak, your money assistant. Ask how much you can spend today or whether you will go over budget, and Zak works it out from your own numbers. It runs fully offline, so it uses no data.',
+  },
   breakdown: {
     title: 'Breakdown',
     text: 'See every rand in and out, and compare this month with the months before.',

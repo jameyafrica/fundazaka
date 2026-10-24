@@ -16,6 +16,7 @@ export function getHeroState(row, totals) {
     return {
       mode: 'total',
       primaryLabel: 'Zaks',
+      primaryLabelKey: 'hero.zaks',
       primaryValue: totals.income,
       targetValue: totals.target,
       isOver: false,
@@ -34,6 +35,7 @@ export function getHeroState(row, totals) {
       return {
         ...base,
         primaryLabel: 'Extra saved',
+        primaryLabelKey: 'hero.extraSaved',
         primaryValue: row.spentAmount - row.targetAmount,
         showProgress: false,
         segments: [],
@@ -43,6 +45,7 @@ export function getHeroState(row, totals) {
     return {
       ...base,
       primaryLabel: 'Balance',
+      primaryLabelKey: 'hero.balance',
       primaryValue: visual.remainingAmount,
       showProgress: true,
       segments: getSegments(visual.ratio),
@@ -55,6 +58,7 @@ export function getHeroState(row, totals) {
       ...base,
       isOver: true,
       primaryLabel: 'Over',
+      primaryLabelKey: 'hero.over',
       primaryValue: visual.overAmount,
       showProgress: false,
       segments: [],
@@ -65,6 +69,7 @@ export function getHeroState(row, totals) {
   return {
     ...base,
     primaryLabel: 'Balance',
+    primaryLabelKey: 'hero.balance',
     primaryValue: visual.remainingAmount,
     showProgress: true,
     segments: getSegments(visual.ratio),
