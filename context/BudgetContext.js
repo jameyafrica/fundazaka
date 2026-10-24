@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import { stateStorage } from '../lib/encryptedStorage';
+import { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { authStorage, stateStorage } from '../lib/encryptedStorage';
 import { isResetDue } from '../utils/resetDate';
 import { COURSES } from '../constants/courses';
 import {
@@ -12,7 +12,8 @@ import { cleanText, coerceAmount } from '../utils/money';
 import { checkEmail, checkNewPassword, friendlyAuthError } from '../utils/validation';
 import { ownsLocalData } from '../lib/session';
 import { parseSavedState } from '../utils/sanitizeState';
-import { supabase, isSupabaseConfigured, hasSupabaseSession } from '../lib/supabase';
+import { eraseLocalData } from '../utils/deleteData';
+import { supabase, isSupabaseConfigured, hasSupabaseSession, AUTH_STORAGE_KEYS } from '../lib/supabase';
 import {
   INCOME_SOURCES,
   applyReset,
@@ -78,6 +79,9 @@ function withSession(prev, user, fallbackName) {
  
 export function BudgetProvider({ children }) {
   const [state, setState] = useState(initialState);
+  // Controls saving while "Delete my data" runs: 'open' saves normally, 'blocked' saves nothing,
+  // 'skip' ignores the one save caused by the reset itself, so nothing is written back after a delete.
+  const saveGate = useRef('open');
  
   // Load saved state once. resetPending is always recomputed, never trusted from storage.
   useEffect(() => {
@@ -123,6 +127,11 @@ export function BudgetProvider({ children }) {
   // Save to the phone every time something changes (offline-first).
   useEffect(() => {
     if (!state.hydrated) return;
+    if (saveGate.current === 'blocked') return;
+    if (saveGate.current === 'skip') {
+      saveGate.current = 'open';
+      return;
+    }
     const { hydrated, ...persisted } = state;
     stateStorage.setItem(STORAGE_KEY, JSON.stringify(persisted)).catch((e) =>
       console.error('Failed to save state', e)
@@ -152,6 +161,26 @@ export function BudgetProvider({ children }) {
     );
   }, [state.isGuest]);
  
+  // Erases everything this app keeps on the phone (budget data, its encryption key and the login),
+  // then returns to a clean state. Returns { ok: true }, or { ok: false } if something could not be erased.
+  const deleteLocalData = useCallback(async () => {
+    saveGate.current = 'blocked';
+    const result = await eraseLocalData({
+      targets: [
+        { storage: stateStorage, keys: [STORAGE_KEY, LEGACY_STORAGE_KEY] },
+        { storage: authStorage, keys: AUTH_STORAGE_KEYS },
+      ],
+      signOut: supabase ? () => supabase.auth.signOut({ scope: 'local' }) : null,
+    });
+    if (!result.ok) {
+      saveGate.current = 'open';
+      return { ok: false };
+    }
+    saveGate.current = 'skip';
+    setState({ ...initialState, hydrated: true });
+    return { ok: true };
+  }, []);
+
   const signUp = useCallback(async ({ email, password, name = '' }) => {
     const problem = checkCredentials(email, password, true);
     if (problem) return { ok: false, error: problem };
@@ -310,6 +339,7 @@ export function BudgetProvider({ children }) {
       signUp,
       signIn,
       signOut,
+      deleteLocalData,
       setDisplayName,
       saveSetup,
       completeTour,
@@ -319,7 +349,7 @@ export function BudgetProvider({ children }) {
       completeLesson,
       submitQuiz,
     }),
-    [state, derived, updateState, startGuest, signUp, signIn, signOut, setDisplayName, saveSetup, completeTour, logIncome, payExpense, runReset, completeLesson, submitQuiz]
+    [state, derived, updateState, startGuest, signUp, signIn, signOut, deleteLocalData, setDisplayName, saveSetup, completeTour, logIncome, payExpense, runReset, completeLesson, submitQuiz]
   );
  
   return <BudgetContext.Provider value={value}>{children}</BudgetContext.Provider>;

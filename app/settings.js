@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect } from 'expo-router';
@@ -10,8 +10,9 @@ import LanguagePicker from '../components/LanguagePicker';
 import { useT } from '../i18n/LanguageContext';
 
 export default function SettingsScreen() {
-  const { user, isGuest, displayName, resetDay, signOut } = useBudget();
+  const { user, isGuest, displayName, resetDay, signOut, deleteLocalData } = useBudget();
   const { t } = useT();
+  const [deleting, setDeleting] = useState(false);
 
   if (!user) return <Redirect href="/(auth)/login" />;
 
@@ -24,6 +25,23 @@ export default function SettingsScreen() {
         { text: t('settings.signOut'), style: 'destructive', onPress: signOut },
       ]
     );
+  };
+
+  const runDelete = async () => {
+    setDeleting(true);
+    const result = await deleteLocalData();
+    // On success the app returns to the login screen, so there is nothing left to update here.
+    if (!result.ok) {
+      setDeleting(false);
+      Alert.alert(t('settings.deleteData'), t('settings.deleteDataFailed'));
+    }
+  };
+
+  const confirmDelete = () => {
+    Alert.alert(t('settings.deleteDataTitle'), t('settings.deleteDataBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('settings.deleteDataConfirm'), style: 'destructive', onPress: runDelete },
+    ]);
   };
 
   const rows = [
@@ -62,6 +80,16 @@ export default function SettingsScreen() {
           >
             <Text style={styles.signOutText}>{t('settings.signOut')}</Text>
           </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [styles.deleteData, (pressed || deleting) && styles.pressed]}
+            onPress={confirmDelete}
+            disabled={deleting}
+            accessibilityRole="button"
+            accessibilityLabel={t('settings.deleteData')}
+          >
+            <Text style={styles.deleteDataText}>{t('settings.deleteData')}</Text>
+          </Pressable>
         </ScrollView>
       </SafeAreaView>
       <NavBar />
@@ -97,5 +125,15 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.warningSurface,
   },
   signOutText: { color: theme.colors.text, fontFamily: theme.fonts.bodyBold, fontSize: 15 },
+  deleteData: {
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: theme.spacing.md,
+    borderRadius: theme.radius.pill,
+    borderWidth: 1,
+    borderColor: theme.colors.surfaceBorder,
+  },
+  deleteDataText: { color: theme.colors.warning, fontFamily: theme.fonts.bodyBold, fontSize: 14 },
   pressed: { opacity: 0.75 },
 });
