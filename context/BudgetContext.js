@@ -5,13 +5,13 @@ import { COURSES } from '../constants/courses';
 import {
   completeLesson as applyCompleteLesson,
   initialLearning,
-  normalizeLearning,
   submitQuiz as applySubmitQuiz,
 } from '../utils/learning';
 import { getCategoryVisual } from '../utils/budgetMath';
 import { cleanText, coerceAmount } from '../utils/money';
 import { checkEmail, checkNewPassword, friendlyAuthError } from '../utils/validation';
 import { ownsLocalData } from '../lib/session';
+import { parseSavedState } from '../utils/sanitizeState';
 import { supabase, isSupabaseConfigured, hasSupabaseSession } from '../lib/supabase';
 import {
   INCOME_SOURCES,
@@ -92,14 +92,14 @@ export function BudgetProvider({ children }) {
         } else {
           await stateStorage.migrateLegacy(LEGACY_STORAGE_KEY, STORAGE_KEY);
           const saved = await stateStorage.getItem(STORAGE_KEY);
-          if (saved) {
-            const parsed = JSON.parse(saved);
+          // Saved data is untrusted: it is validated and rebuilt from a whitelist before use.
+          const parsed = parseSavedState(saved);
+          if (parsed) {
             const due =
               parsed.onboardingCompleted && isResetDue(parsed.resetDay, parsed.cycleStartedAt);
             next = {
               ...initialState,
               ...parsed,
-              learning: normalizeLearning(parsed.learning),
               resetPending: Boolean(due),
               hydrated: true,
             };
