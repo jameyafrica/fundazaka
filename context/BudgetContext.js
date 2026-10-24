@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { stateStorage } from '../lib/encryptedStorage';
 import { isResetDue } from '../utils/resetDate';
 import { COURSES } from '../constants/courses';
 import {
@@ -23,7 +23,9 @@ import {
   withSpent,
 } from '../utils/budgetActions';
  
-const STORAGE_KEY = 'fundazaka_state';
+// Saved state is encrypted under a new name. The old plain-text name is migrated once, then deleted.
+const STORAGE_KEY = 'fundazaka_state_v2';
+const LEGACY_STORAGE_KEY = 'fundazaka_state';
 
 // Dev only: set EXPO_PUBLIC_RESET_ON_LAUNCH=true in .env to start from a clean slate every launch.
 const RESET_ON_LAUNCH = process.env.EXPO_PUBLIC_RESET_ON_LAUNCH === 'true';
@@ -84,10 +86,12 @@ export function BudgetProvider({ children }) {
       let next = { ...initialState, hydrated: true };
       try {
         if (RESET_ON_LAUNCH) {
-          await AsyncStorage.removeItem(STORAGE_KEY);
+          await stateStorage.removeItem(STORAGE_KEY);
+          await stateStorage.removeItem(LEGACY_STORAGE_KEY);
           if (supabase) await supabase.auth.signOut({ scope: 'local' });
         } else {
-          const saved = await AsyncStorage.getItem(STORAGE_KEY);
+          await stateStorage.migrateLegacy(LEGACY_STORAGE_KEY, STORAGE_KEY);
+          const saved = await stateStorage.getItem(STORAGE_KEY);
           if (saved) {
             const parsed = JSON.parse(saved);
             const due =
@@ -120,7 +124,7 @@ export function BudgetProvider({ children }) {
   useEffect(() => {
     if (!state.hydrated) return;
     const { hydrated, ...persisted } = state;
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(persisted)).catch((e) =>
+    stateStorage.setItem(STORAGE_KEY, JSON.stringify(persisted)).catch((e) =>
       console.error('Failed to save state', e)
     );
   }, [state]);
