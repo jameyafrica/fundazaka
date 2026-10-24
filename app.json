@@ -15,7 +15,8 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      },
+      "package": "com.rainbowrave.Fundazaka"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -24,7 +25,18 @@
       "expo-router",
       "expo-status-bar",
       "expo-font",
-      "expo-splash-screen"
-    ]
+      "expo-splash-screen",
+      "expo-secure-store"
+    ],
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "084942da-5446-4fa1-8dd9-e06984106906"
+      }
+    }
   }
 }
