@@ -8,20 +8,18 @@
 import { isValidResetDay } from './resetDate.js';
 import { COURSES } from '../constants/courses.js';
 import { localDateKey } from './learning.js';
+import { GUEST_OWNER } from '../lib/session.js';
+import { AMOUNT_TOO_BIG_ERROR, coerceAmount, subtractMoney, sumMoney } from './money.js';
+import { makeId } from './ids.js';
+
+// makeId now lives in ids.js (secure random ids); re-exported so existing imports keep working.
+export { makeId };
 
 export const CATEGORY_KEYS = ['rent', 'transport', 'debit', 'groceries', 'savings'];
 export const INCOME_SOURCES = ['work', 'gift', 'other'];
 export const MIN_CATEGORIES = 3;
 export const MAX_CATEGORIES = 5;
 
-function toMoney(value) {
-  const n = Number(value);
-  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
-}
-
-export function makeId() {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-}
 
 // Always returns the five categories in the designer's display order,
 // no matter what order the user picked them in.
@@ -44,10 +42,15 @@ export function validateSetup(categories, resetDay) {
   if (new Set(keys).size !== keys.length || keys.some((k) => !CATEGORY_KEYS.includes(k))) {
     return { ok: false, error: 'One of the selected expenses is not valid.' };
   }
-  const cleaned = categories.map((c) => ({ key: c.key, targetAmount: toMoney(c.targetAmount) }));
-  if (cleaned.some((c) => c.targetAmount <= 0)) {
+  // Strict parsing: rejects "1e308", "12e3", "0x10", more than 2 decimals, and anything above the cap.
+  const parsed = categories.map((c) => coerceAmount(c.targetAmount));
+  if (parsed.some((p) => !p.ok && p.error === AMOUNT_TOO_BIG_ERROR)) {
+    return { ok: false, error: AMOUNT_TOO_BIG_ERROR };
+  }
+  if (parsed.some((p) => !p.ok)) {
     return { ok: false, error: 'Please enter a target amount for every expense.' };
   }
+  const cleaned = categories.map((c, i) => ({ key: c.key, targetAmount: parsed[i].amount }));
   if (!isValidResetDay(resetDay)) {
     return { ok: false, error: 'Please choose a reset day between 1 and 30.' };
   }
@@ -60,26 +63,29 @@ export function withSpent(categories, transactions) {
   return categories.map((c) => ({
     key: c.key,
     targetAmount: c.targetAmount,
-    spentAmount: transactions
-      .filter((t) => t.type === 'expense' && t.categoryKey === c.key)
-      .reduce((sum, t) => sum + t.amount, 0),
+    spentAmount: sumMoney(
+      transactions.filter((t) => t.type === 'expense' && t.categoryKey === c.key).map((t) => t.amount)
+    ),
   }));
 }
 
 export function sumIncomeBySource(transactions) {
   const result = { work: 0, gift: 0, other: 0 };
-  transactions.forEach((t) => {
-    if (t.type === 'income' && t.source in result) result[t.source] += t.amount;
+  Object.keys(result).forEach((source) => {
+    result[source] = sumMoney(
+      transactions.filter((t) => t.type === 'income' && t.source === source).map((t) => t.amount)
+    );
   });
   return result;
 }
 
 // "Zaks" = total income, "Target" = total of all targets, Balance = income - expenses.
 export function getTotals(categories, transactions) {
-  const income = transactions.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-  const expenses = transactions.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-  const target = categories.reduce((s, c) => s + c.targetAmount, 0);
-  return { income, expenses, target, balance: income - expenses };
+  // Summed in whole cents so 0.1 + 0.2 equals 0.3 and a category never flips to OVER by rounding noise.
+  const income = sumMoney(transactions.filter((t) => t.type === 'income').map((t) => t.amount));
+  const expenses = sumMoney(transactions.filter((t) => t.type === 'expense').map((t) => t.amount));
+  const target = sumMoney(categories.map((c) => c.targetAmount));
+  return { income, expenses, target, balance: subtractMoney(income, expenses) };
 }
 
 // Snapshot of the finished month, stored in monthlyReports.
@@ -146,7 +152,8 @@ export function buildDemoState(now = new Date()) {
 
   return {
     isGuest: true,
-    user: { id: 'guest' },
+    ownerId: GUEST_OWNER, // demo data is never treated as a real account's data and is never synced
+    user: { id: GUEST_OWNER },
     displayName: 'Thandi',
     onboardingCompleted: true,
     tourCompleted: true,

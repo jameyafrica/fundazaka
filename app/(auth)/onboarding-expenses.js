@@ -84,7 +84,7 @@ export default function OnboardingExpensesScreen() {
 
   const orderedKeys = CATEGORY_KEYS.filter((k) => selected.includes(k));
   const buildCategories = () =>
-    orderedKeys.map((k) => ({ key: k, targetAmount: Number(targets[k]) || 0 }));
+    orderedKeys.map((k) => ({ key: k, targetAmount: targets[k] ?? '' }));
 
   const finish = () => {
     setError('');

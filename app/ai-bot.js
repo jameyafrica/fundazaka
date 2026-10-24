@@ -172,6 +172,7 @@ export default function AiBotScreen() {
               placeholderTextColor={theme.colors.textMuted}
               accessibilityLabel="Message"
               returnKeyType="send"
+              maxLength={200}
               style={[styles.input, { fontSize: fs(15) }]}
             />
             <Pressable

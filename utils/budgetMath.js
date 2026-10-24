@@ -1,6 +1,8 @@
 // Pure helpers for category progress, opacity tiers and the OVER state.
 // Source of the bands: the FNB PDF opacity table (see decision list).
 
+import { fromCents, toCents } from './money.js';
+
 export const TINT_DARK = '#000000';
 export const TINT_LIGHT = '#FFFFFF';
 
@@ -29,7 +31,8 @@ export function getProgressRatio(spentAmount, targetAmount) {
   if (target === 0) {
     return spent > 0 ? Infinity : 0;
   }
-  return spent / target;
+  // Whole cents on both sides, so 0.30000000000000004 / 0.3 is exactly 1, never "over".
+  return toCents(spent) / toCents(target);
 }
 
 // Everything a screen needs to draw one category.
@@ -48,7 +51,7 @@ export function getCategoryVisual(categoryKey, spentAmount, targetAmount) {
       tint: TINT_LIGHT,
       isOver: false,
       overAmount: 0,
-      remainingAmount: Math.max(target - spent, 0),
+      remainingAmount: Math.max(fromCents(toCents(target) - toCents(spent)), 0),
     };
   }
 
@@ -59,7 +62,7 @@ export function getCategoryVisual(categoryKey, spentAmount, targetAmount) {
       opacity: OVER_OPACITY,
       tint: null,
       isOver: true,
-      overAmount: spent - target,
+      overAmount: fromCents(toCents(spent) - toCents(target)),
       remainingAmount: 0,
     };
   }
@@ -72,6 +75,6 @@ export function getCategoryVisual(categoryKey, spentAmount, targetAmount) {
     tint: band.tint,
     isOver: false,
     overAmount: 0,
-    remainingAmount: target - spent,
+    remainingAmount: fromCents(toCents(target) - toCents(spent)),
   };
 }

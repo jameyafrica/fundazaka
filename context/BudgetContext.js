@@ -9,6 +9,9 @@ import {
   submitQuiz as applySubmitQuiz,
 } from '../utils/learning';
 import { getCategoryVisual } from '../utils/budgetMath';
+import { cleanText, coerceAmount } from '../utils/money';
+import { checkEmail, checkNewPassword, friendlyAuthError } from '../utils/validation';
+import { ownsLocalData } from '../lib/session';
 import { supabase, isSupabaseConfigured, hasSupabaseSession } from '../lib/supabase';
 import {
   INCOME_SOURCES,
@@ -44,31 +47,23 @@ const initialState = {
   learning: initialLearning, // streak, lesson progress, quiz scores, badges
 };
  
-function friendlyAuthError(error) {
-  const msg = String((error && error.message) || error || '').toLowerCase();
-  if (msg.includes('network') || msg.includes('fetch')) {
-    return 'No connection. Check your data or Wi-Fi and try again.';
-  }
-  if (msg.includes('invalid login')) return 'Wrong email or password.';
-  if (msg.includes('already registered')) return 'That email already has an account. Try logging in.';
-  if (msg.includes('rate limit')) return 'Too many attempts. Please wait a minute and try again.';
-  if (msg.includes('password')) return 'Your password must be at least 6 characters.';
-  return 'Something went wrong. Please try again.';
-}
- 
-function checkCredentials(email, password) {
+function checkCredentials(email, password, isSignUp) {
   if (!isSupabaseConfigured) {
     return 'Supabase is not set up yet. Add your keys to the .env file, or use Demo Mode.';
   }
-  if (!/^\S+@\S+\.\S+$/.test(String(email || '').trim())) return 'Please enter a valid email address.';
-  if (String(password || '').length < 6) return 'Your password must be at least 6 characters.';
+  const emailProblem = checkEmail(email);
+  if (emailProblem) return emailProblem;
+  // Password strength is only enforced when CREATING an account, so older passwords still log in.
+  if (isSignUp) return checkNewPassword(password, email);
+  if (!String(password || '').length) return 'Please enter your password.';
   return null;
 }
- 
+
 // Puts a signed-in Supabase user into state. If a different account used this
 // phone before, its local data is cleared so users never see each other's money.
 function withSession(prev, user, fallbackName) {
-  const sameOwner = !prev.ownerId || prev.ownerId === user.id;
+  // Only keep data saved under this exact account. Demo data and unowned data are discarded.
+  const sameOwner = ownsLocalData(prev, user.id);
   const base = sameOwner ? prev : { ...initialState, hydrated: true };
   return {
     ...base,
@@ -77,11 +72,6 @@ function withSession(prev, user, fallbackName) {
     isGuest: false,
     displayName: (user.user_metadata && user.user_metadata.display_name) || base.displayName || fallbackName || '',
   };
-}
- 
-function parseAmount(value) {
-  const n = Number(String(value).replace(',', '.'));
-  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
 }
  
 export function BudgetProvider({ children }) {
@@ -159,7 +149,7 @@ export function BudgetProvider({ children }) {
   }, [state.isGuest]);
  
   const signUp = useCallback(async ({ email, password, name = '' }) => {
-    const problem = checkCredentials(email, password);
+    const problem = checkCredentials(email, password, true);
     if (problem) return { ok: false, error: problem };
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -179,7 +169,7 @@ export function BudgetProvider({ children }) {
   }, []);
  
   const signIn = useCallback(async ({ email, password }) => {
-    const problem = checkCredentials(email, password);
+    const problem = checkCredentials(email, password, false);
     if (problem) return { ok: false, error: problem };
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
@@ -216,8 +206,9 @@ export function BudgetProvider({ children }) {
  
   // Log irregular income: amount in Rand, source = 'work' | 'gift' | 'other'.
   const logIncome = useCallback(({ amount, source, note = '' }) => {
-    const value = parseAmount(amount);
-    if (value <= 0) return { ok: false, error: 'Please enter an amount greater than R0.' };
+    const parsed = coerceAmount(amount);
+    if (!parsed.ok) return { ok: false, error: parsed.error };
+    const value = parsed.amount;
     if (!INCOME_SOURCES.includes(source)) {
       return { ok: false, error: 'Please choose Work, Gift or Other.' };
     }
@@ -225,7 +216,7 @@ export function BudgetProvider({ children }) {
       ...prev,
       transactions: [
         ...prev.transactions,
-        { id: makeId(), type: 'income', source, amount: value, note, createdAt: new Date().toISOString() },
+        { id: makeId(), type: 'income', source, amount: value, note: cleanText(note), createdAt: new Date().toISOString() },
       ],
     }));
     return { ok: true };
@@ -234,8 +225,9 @@ export function BudgetProvider({ children }) {
   // Pay an expense (or add savings) against one of the user's chosen categories.
   const payExpense = useCallback(
     ({ amount, categoryKey, note = '' }) => {
-      const value = parseAmount(amount);
-      if (value <= 0) return { ok: false, error: 'Please enter an amount greater than R0.' };
+      const parsed = coerceAmount(amount);
+      if (!parsed.ok) return { ok: false, error: parsed.error };
+      const value = parsed.amount;
       if (!state.categories.some((c) => c.key === categoryKey)) {
         return { ok: false, error: 'Please choose one of your expenses.' };
       }
@@ -243,7 +235,7 @@ export function BudgetProvider({ children }) {
         ...prev,
         transactions: [
           ...prev.transactions,
-          { id: makeId(), type: 'expense', categoryKey, amount: value, note, createdAt: new Date().toISOString() },
+          { id: makeId(), type: 'expense', categoryKey, amount: value, note: cleanText(note), createdAt: new Date().toISOString() },
         ],
       }));
       return { ok: true };

@@ -16,6 +16,7 @@ import { theme } from '../constants/theme';
 import { CATEGORY_META } from '../constants/categories';
 import { useScale } from '../hooks/useScale';
 import { formatRand } from '../utils/format';
+import { addMoney, parseMoney, subtractMoney } from '../utils/money';
 import ScreenBackground from '../components/ScreenBackground';
 import CategoryIcon from '../components/CategoryIcon';
 
@@ -25,14 +26,6 @@ const SOURCES = [
   { key: 'other', label: 'Other' },
 ];
 
-// Accepts "1500", "1 500", "1500,50" and "R1500.50". Returns a number (0 if unusable).
-function toNumber(text) {
-  const cleaned = String(text || '')
-    .replace(/[R\s\u00A0]/gi, '')
-    .replace(',', '.');
-  const n = parseFloat(cleaned);
-  return Number.isFinite(n) && n > 0 ? n : 0;
-}
 
 export default function AddTransactionScreen() {
   const router = useRouter();
@@ -51,7 +44,11 @@ export default function AddTransactionScreen() {
   });
   const [error, setError] = useState('');
 
-  const amount = toNumber(amountText);
+  // Strict parsing (utils/money.js): "1500", "1 500", "1500,50" and "R1500.50" are fine;
+  // "1e308", "12e3", "0x10" and amounts above R9 999 999.99 are rejected with a clear message.
+  const parsedAmount = amountText.trim() ? parseMoney(amountText) : null;
+  const amount = parsedAmount && parsedAmount.ok ? parsedAmount.amount : 0;
+  const amountProblem = parsedAmount && !parsedAmount.ok ? parsedAmount.error : '';
   const selectedRow = categoryRows.find((row) => row.key === categoryKey) || null;
   const isSavings = categoryKey === 'savings';
   const isIncome = mode === 'income';
@@ -59,14 +56,14 @@ export default function AddTransactionScreen() {
   // Live heads-up so the user sees the consequence before they save.
   const preview = useMemo(() => {
     if (isIncome || !selectedRow || amount <= 0) return null;
-    const after = selectedRow.spentAmount + amount;
+    const after = addMoney(selectedRow.spentAmount, amount);
     if (isSavings) {
-      const left = selectedRow.targetAmount - after;
+      const left = subtractMoney(selectedRow.targetAmount, after);
       return left >= 0
         ? { tone: 'info', text: `${formatRand(left)} left to reach your savings target.` }
         : { tone: 'info', text: `Target reached. That is ${formatRand(-left)} extra saved!` };
     }
-    const left = selectedRow.targetAmount - after;
+    const left = subtractMoney(selectedRow.targetAmount, after);
     return left >= 0
       ? { tone: 'info', text: `${formatRand(left)} will be left in ${CATEGORY_META[categoryKey].title}.` }
       : { tone: 'warning', text: `This puts ${CATEGORY_META[categoryKey].title} ${formatRand(-left)} over target.` };
@@ -247,6 +244,7 @@ export default function AddTransactionScreen() {
               </View>
             )}
 
+            {amountProblem ? <Text style={styles.error}>{amountProblem}</Text> : null}
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
             <Pressable
