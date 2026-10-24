@@ -10,7 +10,7 @@ import {
 import { getCategoryVisual } from '../utils/budgetMath';
 import { cleanText, coerceAmount } from '../utils/money';
 import { checkEmail, checkNewPassword, friendlyAuthError } from '../utils/validation';
-import { ownsLocalData } from '../lib/session';
+import { hasAccountData, ownsLocalData } from '../lib/session';
 import { parseSavedState } from '../utils/sanitizeState';
 import { eraseLocalData } from '../utils/deleteData';
 import { supabase, isSupabaseConfigured, hasSupabaseSession, AUTH_STORAGE_KEYS } from '../lib/supabase';
@@ -142,25 +142,6 @@ export function BudgetProvider({ children }) {
     setState((prev) => ({ ...prev, ...updates }));
   }, []);
  
-  const startGuest = useCallback(() => {
-    setState((prev) => ({ ...prev, ...buildDemoState(new Date()) }));
-  }, []);
- 
-  // Guest data is disposable, so signing out of Demo Mode wipes it.
-  // A real account only drops the session; its data stays on the phone.
-  const signOut = useCallback(async () => {
-    if (!state.isGuest && supabase) {
-      try {
-        await supabase.auth.signOut();
-      } catch (e) {
-        console.error('Supabase sign out failed', e);
-      }
-    }
-    setState((prev) =>
-      prev.isGuest ? { ...initialState, hydrated: true } : { ...prev, user: null, isGuest: false }
-    );
-  }, [state.isGuest]);
- 
   // Erases everything this app keeps on the phone (budget data, its encryption key and the login),
   // then returns to a clean state. Returns { ok: true }, or { ok: false } if something could not be erased.
   const deleteLocalData = useCallback(async () => {
@@ -180,6 +161,33 @@ export function BudgetProvider({ children }) {
     setState({ ...initialState, hydrated: true });
     return { ok: true };
   }, []);
+
+  // Starts Demo Mode. If a signed-out account's data is still on the phone, this refuses unless
+  // replace is true, because the demo would erase it. Returns { ok } or { ok: false, reason }.
+  const startGuest = useCallback(
+    ({ replace = false } = {}) => {
+      if (!replace && hasAccountData(state)) return { ok: false, reason: 'account-data' };
+      setState((prev) => ({ ...prev, ...buildDemoState(new Date()) }));
+      return { ok: true };
+    },
+    [state]
+  );
+
+  // Demo data is disposable, so leaving Demo Mode erases it. A real account only ends its login:
+  // its data stays on the phone (encrypted) so the person finds it when they log back in.
+  const signOut = useCallback(async () => {
+    if (state.isGuest) {
+      const result = await deleteLocalData();
+      if (!result.ok) setState({ ...initialState, hydrated: true });
+      return;
+    }
+    // Best effort on the server, then always remove the login from this phone, even when offline.
+    await eraseLocalData({
+      targets: [{ storage: authStorage, keys: AUTH_STORAGE_KEYS }],
+      signOut: supabase ? () => supabase.auth.signOut({ scope: 'local' }) : null,
+    });
+    setState((prev) => ({ ...prev, user: null, isGuest: false }));
+  }, [state.isGuest, deleteLocalData]);
 
   const signUp = useCallback(async ({ email, password, name = '' }) => {
     const problem = checkCredentials(email, password, true);
