@@ -158,6 +158,8 @@ export function buildDemoState(now = new Date()) {
     onboardingCompleted: true,
     tourCompleted: true,
     resetPending: false,
+    appLockEnabled: false,
+    privacyConsent: null, // demo mode stores no personal information, so there is nothing to consent to
     resetDay: 1,
     cycleStartedAt: cycleStart.toISOString(),
     categories: sortCategories([

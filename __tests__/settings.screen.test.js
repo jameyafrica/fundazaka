@@ -4,7 +4,8 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import SettingsScreen from '../app/settings';
 
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
-jest.mock('expo-router', () => ({ Redirect: () => null, useRouter: () => ({ replace: jest.fn(), push: jest.fn() }) }));
+const mockPush = jest.fn();
+jest.mock('expo-router', () => ({ Redirect: () => null, useRouter: () => ({ replace: jest.fn(), push: mockPush }) }));
 jest.mock('../components/ScreenBackground', () => () => null);
 jest.mock('../components/NavBar', () => () => null);
 jest.mock('../components/LanguagePicker', () => () => null);
@@ -14,8 +15,10 @@ const mockBudget = {
   isGuest: false,
   displayName: 'Thandi',
   resetDay: 25,
+  appLockEnabled: false,
   signOut: jest.fn(),
   deleteLocalData: jest.fn(),
+  setAppLockEnabled: jest.fn(),
 };
 jest.mock('../context/BudgetContext', () => ({ useBudget: () => mockBudget }));
 
@@ -61,5 +64,46 @@ describe('Settings: Delete my data', () => {
     });
     expect(alertSpy).toHaveBeenCalledTimes(2);
     expect(alertSpy.mock.calls[1][1]).toBe('We could not delete everything. Please try again.');
+  });
+});
+
+describe('Settings: App lock and privacy notice', () => {
+  let alertSpy;
+  beforeEach(() => {
+    alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    mockBudget.setAppLockEnabled.mockReset();
+    mockPush.mockReset();
+  });
+  afterEach(() => alertSpy.mockRestore());
+
+  test('the App lock switch asks the context to turn it on, with a confirm prompt', async () => {
+    mockBudget.setAppLockEnabled.mockResolvedValue({ ok: true });
+    await render(<SettingsScreen />);
+    await fireEvent(screen.getByLabelText('App lock'), 'valueChange', true);
+    expect(mockBudget.setAppLockEnabled).toHaveBeenCalledWith(true, {
+      promptMessage: "Confirm it's you to change App lock",
+      cancelLabel: 'Cancel',
+    });
+    expect(alertSpy).not.toHaveBeenCalled();
+  });
+
+  test('explains when the phone has no screen lock', async () => {
+    mockBudget.setAppLockEnabled.mockResolvedValue({ ok: false, reason: 'unavailable' });
+    await render(<SettingsScreen />);
+    await fireEvent(screen.getByLabelText('App lock'), 'valueChange', true);
+    expect(alertSpy).toHaveBeenCalledWith('App lock', 'Set up a fingerprint, face or PIN screen lock on this phone first.');
+  });
+
+  test('says so when the person could not be confirmed', async () => {
+    mockBudget.setAppLockEnabled.mockResolvedValue({ ok: false, reason: 'failed' });
+    await render(<SettingsScreen />);
+    await fireEvent(screen.getByLabelText('App lock'), 'valueChange', true);
+    expect(alertSpy).toHaveBeenCalledWith('App lock', 'We could not confirm it was you. Please try again.');
+  });
+
+  test('the Privacy notice row opens the privacy screen', async () => {
+    await render(<SettingsScreen />);
+    await fireEvent.press(screen.getByLabelText('Privacy notice'));
+    expect(mockPush).toHaveBeenCalledWith('/privacy');
   });
 });

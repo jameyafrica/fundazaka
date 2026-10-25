@@ -10,13 +10,13 @@
       "supportsTablet": true
     },
     "android": {
+      "allowBackup": false,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      },
-      "package": "com.rainbowrave.Fundazaka"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -26,17 +26,12 @@
       "expo-status-bar",
       "expo-font",
       "expo-splash-screen",
-      "expo-secure-store"
-    ],
-    "extra": {
-      "router": {
-        "asyncRoutes": {
-          "web": true
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Fundazaka uses Face ID to keep your money information private."
         }
-      },
-      "eas": {
-        "projectId": "084942da-5446-4fa1-8dd9-e06984106906"
-      }
-    }
+      ]
+    ]
   }
 }

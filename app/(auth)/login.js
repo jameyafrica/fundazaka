@@ -18,6 +18,7 @@ import { useBudget } from '../../context/BudgetContext';
 import { theme } from '../../constants/theme';
 import { useScale } from '../../hooks/useScale';
 import { getNextRoute } from '../../utils/routing';
+import { splitLinkText } from '../../utils/privacy';
 import { useT } from '../../i18n/LanguageContext';
 import LanguagePicker from '../../components/LanguagePicker';
 import WelcomeLogoFundazakaBottomLeft from '../../components/icons/WelcomeLogoFundazakaBottomLeft';
@@ -35,8 +36,10 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [accepted, setAccepted] = useState(false); // privacy notice accepted (sign-up only)
 
   const isSignup = mode === 'signup';
+  const consent = splitLinkText(t('login.consent'));
 
   // As soon as a user exists (real account or demo), move on to wherever they belong.
   useEffect(() => {
@@ -53,9 +56,13 @@ export default function LoginScreen() {
   const submit = async () => {
     if (busy) return;
     setError('');
+    if (isSignup && !accepted) {
+      setError(t('login.consentRequired'));
+      return;
+    }
     setBusy(true);
     const result = isSignup
-      ? await signUp({ email, password, name })
+      ? await signUp({ email, password, name, acceptedPrivacy: accepted })
       : await signIn({ email, password });
     setBusy(false);
     if (!result.ok) setError(result.error);
@@ -146,6 +153,27 @@ export default function LoginScreen() {
                   </Pressable>
                 </View>
 
+                {isSignup && (
+                  <Pressable
+                    style={styles.consentRow}
+                    onPress={() => setAccepted((value) => !value)}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: accepted }}
+                    accessibilityLabel={`${consent.before}${consent.link}${consent.after}`}
+                  >
+                    <View style={[styles.checkbox, accepted && styles.checkboxOn]}>
+                      {accepted && <Text style={styles.checkMark}>{'\u2713'}</Text>}
+                    </View>
+                    <Text style={styles.consentText}>
+                      {consent.before}
+                      <Text style={styles.consentLink} onPress={() => router.push('/privacy')}>
+                        {consent.link}
+                      </Text>
+                      {consent.after}
+                    </Text>
+                  </Pressable>
+                )}
+
                 {error !== '' && <Text style={styles.error}>{error}</Text>}
 
                 <Pressable
@@ -191,6 +219,21 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
+  consentRow: { flexDirection: 'row', alignItems: 'center', marginTop: theme.spacing.md },
+  checkbox: {
+    width: 24,
+    height: 24,
+    marginRight: theme.spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: theme.colors.surfaceBorder,
+  },
+  checkboxOn: { backgroundColor: theme.colors.accent, borderColor: theme.colors.accent },
+  checkMark: { color: theme.colors.text, fontFamily: theme.fonts.bodyBold, fontSize: 15, lineHeight: 18 },
+  consentText: { flex: 1, color: theme.colors.text, fontFamily: theme.fonts.bodySemiBold, fontSize: 13, lineHeight: 18 },
+  consentLink: { color: theme.colors.accent, fontFamily: theme.fonts.bodyBold, textDecorationLine: 'underline' },
   container: { flex: 1, backgroundColor: theme.colors.background },
   safeArea: { flex: 1 },
   flex: { flex: 1 },

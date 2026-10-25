@@ -7,6 +7,7 @@ import { BudgetProvider } from '../context/BudgetContext';
 import { LanguageProvider } from '../i18n/LanguageContext';
 import { checkSupabaseConnection } from '../lib/supabase';
 import { theme } from '../constants/theme';
+import AppLockGate from '../components/AppLockGate';
 
 // Keep the splash screen visible while we fetch fonts
 SplashScreen.preventAutoHideAsync();
@@ -38,12 +39,14 @@ function RootNavigation() {
   }
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: theme.colors.background },
-      }}
-    />
+    <AppLockGate>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: theme.colors.background },
+        }}
+      />
+    </AppLockGate>
   );
 }
 

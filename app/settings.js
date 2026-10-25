@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Redirect } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { useBudget } from '../context/BudgetContext';
 import { theme } from '../constants/theme';
 import ScreenBackground from '../components/ScreenBackground';
@@ -10,9 +10,11 @@ import LanguagePicker from '../components/LanguagePicker';
 import { useT } from '../i18n/LanguageContext';
 
 export default function SettingsScreen() {
-  const { user, isGuest, displayName, resetDay, signOut, deleteLocalData } = useBudget();
+  const { user, isGuest, displayName, resetDay, appLockEnabled, signOut, deleteLocalData, setAppLockEnabled } = useBudget();
   const { t } = useT();
+  const router = useRouter();
   const [deleting, setDeleting] = useState(false);
+  const [lockBusy, setLockBusy] = useState(false);
 
   if (!user) return <Redirect href="/(auth)/login" />;
 
@@ -25,6 +27,19 @@ export default function SettingsScreen() {
         { text: t('settings.signOut'), style: 'destructive', onPress: signOut },
       ]
     );
+  };
+
+  const toggleAppLock = async (wanted) => {
+    if (lockBusy) return;
+    setLockBusy(true);
+    const result = await setAppLockEnabled(wanted, {
+      promptMessage: t('lock.confirmPrompt'),
+      cancelLabel: t('common.cancel'),
+    });
+    setLockBusy(false);
+    if (!result.ok) {
+      Alert.alert(t('settings.appLock'), result.reason === 'unavailable' ? t('settings.appLockUnavailable') : t('lock.failed'));
+    }
   };
 
   const runDelete = async () => {
@@ -73,6 +88,31 @@ export default function SettingsScreen() {
             <LanguagePicker />
           </View>
 
+          <View style={[styles.card, styles.lockCard]}>
+            <View style={styles.lockText}>
+              <Text style={styles.lockTitle}>{t('settings.appLock')}</Text>
+              <Text style={styles.rowLabel}>{t('settings.appLockHint')}</Text>
+            </View>
+            <Switch
+              value={Boolean(appLockEnabled)}
+              onValueChange={toggleAppLock}
+              disabled={lockBusy}
+              trackColor={{ false: 'rgba(255, 255, 255, 0.25)', true: theme.colors.accent }}
+              thumbColor={theme.colors.text}
+              accessibilityLabel={t('settings.appLock')}
+            />
+          </View>
+
+          <Pressable
+            style={({ pressed }) => [styles.privacyRow, pressed && styles.pressed]}
+            onPress={() => router.push('/privacy')}
+            accessibilityRole="button"
+            accessibilityLabel={t('settings.privacy')}
+          >
+            <Text style={styles.privacyText}>{t('settings.privacy')}</Text>
+            <Text style={styles.privacyArrow}>›</Text>
+          </Pressable>
+
           <Pressable
             style={({ pressed }) => [styles.signOut, pressed && styles.pressed]}
             onPress={confirmSignOut}
@@ -111,6 +151,28 @@ const styles = StyleSheet.create({
   row: { padding: theme.spacing.md },
   rowBorder: { borderTopWidth: 1, borderTopColor: theme.colors.surfaceBorder },
   languageCard: { marginTop: theme.spacing.md },
+  lockCard: {
+    marginTop: theme.spacing.md,
+    padding: theme.spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  lockText: { flex: 1, marginRight: theme.spacing.md },
+  lockTitle: { color: theme.colors.text, fontFamily: theme.fonts.bodyBold, fontSize: 16, marginBottom: 2 },
+  privacyRow: {
+    marginTop: theme.spacing.md,
+    padding: theme.spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: theme.radius.card,
+    borderWidth: 1,
+    borderColor: theme.colors.surfaceBorder,
+    backgroundColor: theme.colors.surface,
+  },
+  privacyText: { color: theme.colors.text, fontFamily: theme.fonts.bodyBold, fontSize: 16 },
+  privacyArrow: { color: theme.colors.textMuted, fontSize: 22 },
   languageLabel: { paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.md },
   rowLabel: { color: theme.colors.textMuted, fontFamily: theme.fonts.bodySemiBold, fontSize: 12 },
   rowValue: { marginTop: 2, color: theme.colors.text, fontFamily: theme.fonts.bodyBold, fontSize: 16 },
