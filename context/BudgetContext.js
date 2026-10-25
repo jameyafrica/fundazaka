@@ -13,6 +13,8 @@ import { checkEmail, checkNewPassword, friendlyAuthError } from '../utils/valida
 import { hasAccountData, ownsLocalData } from '../lib/session';
 import { parseSavedState } from '../utils/sanitizeState';
 import { eraseLocalData } from '../utils/deleteData';
+import { appLockService } from '../lib/appLock';
+import { buildConsentRecord } from '../utils/privacy';
 import { supabase, isSupabaseConfigured, hasSupabaseSession, AUTH_STORAGE_KEYS } from '../lib/supabase';
 import {
   INCOME_SOURCES,
@@ -42,6 +44,8 @@ const initialState = {
   onboardingCompleted: false,
   tourCompleted: false,
   resetPending: false,
+  appLockEnabled: false, // ask for fingerprint, face or phone PIN when the app opens
+  privacyConsent: null, // { version, acceptedAt } recorded when the privacy notice is accepted at sign-up
   resetDay: null,
   categories: [], // [{ key, targetAmount }]
   transactions: [], // current cycle only
@@ -189,20 +193,31 @@ export function BudgetProvider({ children }) {
     setState((prev) => ({ ...prev, user: null, isGuest: false }));
   }, [state.isGuest, deleteLocalData]);
 
-  const signUp = useCallback(async ({ email, password, name = '' }) => {
+  const signUp = useCallback(async ({ email, password, name = '', acceptedPrivacy = false }) => {
+    // An account is only created after the person has accepted the privacy notice.
+    if (acceptedPrivacy !== true) {
+      return { ok: false, error: 'Please accept the Privacy Notice to create an account.' };
+    }
     const problem = checkCredentials(email, password, true);
     if (problem) return { ok: false, error: problem };
     try {
+      const consent = buildConsentRecord(new Date());
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
-        options: { data: { display_name: name.trim() } },
+        options: {
+          data: {
+            display_name: name.trim(),
+            privacy_version: consent.version,
+            privacy_accepted_at: consent.acceptedAt,
+          },
+        },
       });
       if (error) return { ok: false, error: friendlyAuthError(error) };
       if (!data.session || !data.user) {
         return { ok: false, error: 'Please confirm your email, then log in. (Turn off "Confirm email" in Supabase for instant sign up.)' };
       }
-      setState((prev) => withSession(prev, data.user, name.trim()));
+      setState((prev) => ({ ...withSession(prev, data.user, name.trim()), privacyConsent: consent }));
       return { ok: true };
     } catch (e) {
       return { ok: false, error: friendlyAuthError(e) };
@@ -222,6 +237,25 @@ export function BudgetProvider({ children }) {
     }
   }, []);
  
+  // Turns App lock on or off. The person must prove it is them first (fingerprint, face or phone PIN),
+  // and App lock cannot be turned on if the phone has no screen lock. Returns { ok } or { ok: false, reason }.
+  const setAppLockEnabled = useCallback(
+    async (enabled, promptOptions = {}) => {
+      const wanted = enabled === true;
+      if (wanted === state.appLockEnabled) return { ok: true };
+      const available = await appLockService.isAvailable();
+      if (wanted && !available) return { ok: false, reason: 'unavailable' };
+      // With no screen lock left on the phone there is nothing to prove, so turning it off is always allowed.
+      if (available) {
+        const proof = await appLockService.authenticate(promptOptions);
+        if (!proof.ok) return { ok: false, reason: 'failed' };
+      }
+      setState((prev) => ({ ...prev, appLockEnabled: wanted }));
+      return { ok: true };
+    },
+    [state.appLockEnabled]
+  );
+
   const setDisplayName = useCallback((name) => {
     setState((prev) => ({ ...prev, displayName: String(name || '').trim() }));
   }, []);
@@ -348,6 +382,7 @@ export function BudgetProvider({ children }) {
       signIn,
       signOut,
       deleteLocalData,
+      setAppLockEnabled,
       setDisplayName,
       saveSetup,
       completeTour,
@@ -357,7 +392,7 @@ export function BudgetProvider({ children }) {
       completeLesson,
       submitQuiz,
     }),
-    [state, derived, updateState, startGuest, signUp, signIn, signOut, deleteLocalData, setDisplayName, saveSetup, completeTour, logIncome, payExpense, runReset, completeLesson, submitQuiz]
+    [state, derived, updateState, startGuest, signUp, signIn, signOut, deleteLocalData, setAppLockEnabled, setDisplayName, saveSetup, completeTour, logIncome, payExpense, runReset, completeLesson, submitQuiz]
   );
  
   return <BudgetContext.Provider value={value}>{children}</BudgetContext.Provider>;

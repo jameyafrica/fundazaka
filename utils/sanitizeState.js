@@ -166,6 +166,14 @@ export function sanitizeLearning(raw) {
   return { ...learning, badges: evaluateBadges(learning, COURSES) };
 }
 
+// The saved record that the privacy notice was accepted.
+function sanitizeConsent(raw) {
+  if (!isPlainObject(raw)) return null;
+  const acceptedAt = cleanDate(raw.acceptedAt);
+  const version = typeof raw.version === 'string' && /^[0-9A-Za-z._-]{1,20}$/.test(raw.version) ? raw.version : null;
+  return acceptedAt && version ? { version, acceptedAt } : null;
+}
+
 // Who the saved data belongs to. Returns { ok: false } when the owner fields contradict each other.
 function sanitizeIdentity(raw) {
   if (raw.isGuest === true) {
@@ -212,6 +220,8 @@ export function sanitizeState(raw, options = {}) {
     onboardingCompleted: setupComplete,
     tourCompleted: raw.tourCompleted === true,
     resetPending: false, // always recomputed by the app, never trusted from storage
+    appLockEnabled: raw.appLockEnabled === true,
+    privacyConsent: identity.isGuest ? null : sanitizeConsent(raw.privacyConsent),
     resetDay,
     categories,
     transactions: sanitizeTransactions(raw.transactions, newId),
