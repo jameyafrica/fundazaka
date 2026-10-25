@@ -1,5 +1,6 @@
 // Pure logic for the dashboard hero card. No React, easy to test.
 import { PROGRESS_BANDS } from './budgetMath.js';
+import { MIN_PAYDAYS_FOR_RHYTHM, formatShortDate, predictNextIncome } from './insights.js';
 
 // Five segments, one per 20% band. A segment is filled once progress passes its start.
 export function getSegments(ratio) {
@@ -75,4 +76,18 @@ export function getHeroState(row, totals) {
     segments: getSegments(visual.ratio),
     motivationKind: visual.remainingAmount === 0 ? 'reached' : 'default',
   };
+}
+
+// The "Next payment" card on the dashboard, built from the same pay-rhythm forecast Zak uses.
+// kind: 'learning' (not enough pay days yet) | 'upcoming' | 'today' | 'overdue'.
+// Amounts are whole Rand; confidence is 'low' | 'medium' | 'high'.
+export function getNextPaymentCard(monthlyReports, transactions, now = new Date()) {
+  const next = predictNextIncome(monthlyReports, transactions, now);
+  if (!next.ok) {
+    return { kind: 'learning', count: MIN_PAYDAYS_FOR_RHYTHM, seen: next.paydays };
+  }
+  const shared = { low: next.amountLow, high: next.amountHigh, typical: next.typicalAmount, confidence: next.confidence };
+  if (next.status === 'overdue') return { kind: 'overdue', ...shared };
+  if (next.expectedInDays === 0) return { kind: 'today', ...shared };
+  return { kind: 'upcoming', date: formatShortDate(next.expectedDate), days: next.expectedInDays, ...shared };
 }

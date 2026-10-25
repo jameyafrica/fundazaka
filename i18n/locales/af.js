@@ -1,4 +1,4 @@
-// Afrikaans: DRAFT translation. Have a native speaker review it before it ships to users.
+
 // Keep the keys and the {placeholders} exactly as in en.js (npx jest i18n checks this).
 export default {
   "common.back": "‹ Terug",
@@ -95,6 +95,17 @@ export default {
   "home.calculator": "Sakrekenaar",
   "home.learn": "Kom ons raak finansieel slim!",
   "home.learnA11y": "Leerpaaie",
+  "home.nextPay.title": "Volgende betaling",
+  "home.nextPay.upcoming": "Waarskynlik omtrent {date}",
+  "home.nextPay.today": "Behoort nou te kom",
+  "home.nextPay.overdue": "Agterstallig volgens my. Wees versigtig met uitgawes.",
+  "home.nextPay.learning": "Hou aan om jou inkomste aan te teken. Na {count} betaaldae kan ek jou volgende betaling voorspel.",
+  "home.nextPay.range": "Gewoonlik {low} tot {high}",
+  "home.nextPay.usually": "Gewoonlik {amount}",
+  "home.nextPay.conf.low": "Vroeë raaiskoot",
+  "home.nextPay.conf.medium": "Goeie raaiskoot",
+  "home.nextPay.conf.high": "Selfversekerd",
+  "home.nextPay.a11y": "Voorspelling van volgende betaling. Maak Zak oop.",
   "settings.title": "Instellings",
   "settings.name": "Naam",
   "settings.account": "Rekening",
