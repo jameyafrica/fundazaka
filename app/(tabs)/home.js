@@ -15,6 +15,7 @@ import ScreenBackground from '../../components/ScreenBackground';
 import CategoryIcon from '../../components/CategoryIcon';
 import NavBar from '../../components/NavBar';
 import NextPaymentCard from '../../components/NextPaymentCard';
+import SavingsGlow from '../../components/SavingsGlow';
 
 import Avatar from '../../components/icons/DashboardAvatarUserTopLeft';
 import FnbLogo from '../../components/icons/DashboardIconFnbLogoHeroImage30';
@@ -49,23 +50,20 @@ export default function HomeScreen() {
     reached: tList('motivation.reached'),
     over: tList('motivation.over'),
     savings: tList('motivation.savings'),
+    savingsOver: tList('motivation.savingsOver'),
   });
   const forecast = getHeroForecast(categoryRows, getCycleProgress(resetDay, cycleStartedAt, new Date()), selectedKey);
   let forecastText = '';
   if (forecast) {
     const name = t(`cat.${forecast.key}.title`);
-    if (forecast.daysUntilOver === null) {
-      forecastText = `At this pace ${name} will pass its target by about ${formatRand(forecast.projectedOver)}.`;
+    const days = forecast.daysUntilOver;
+    const unit = days === 1 ? 'dayOne' : 'dayMany';
+    if (days === null) {
+      forecastText = t('home.forecast.pass', { name, amount: formatRand(forecast.projectedOver) });
     } else if (selected) {
-      forecastText =
-        forecast.daysUntilOver === 0
-          ? 'At this pace you will pass the target today.'
-          : `At this pace you will pass the target in ${forecast.daysUntilOver} day${forecast.daysUntilOver === 1 ? '' : 's'}.`;
+      forecastText = days === 0 ? t('home.forecast.todaySel') : t(`home.forecast.${unit}Sel`, { count: days });
     } else {
-      forecastText =
-        forecast.daysUntilOver === 0
-          ? `At this pace ${name} passes its target today.`
-          : `At this pace ${name} passes its target in ${forecast.daysUntilOver} day${forecast.daysUntilOver === 1 ? '' : 's'}.`;
+      forecastText = days === 0 ? t('home.forecast.todayCat', { name }) : t(`home.forecast.${unit}Cat`, { name, count: days });
     }
   }
   const isSavings = selected && selected.key === 'savings';
@@ -106,14 +104,24 @@ export default function HomeScreen() {
             </Text>
           </View>
 
-          <View style={[styles.hero, hero.isOver && styles.heroOver]}>
+          <SavingsGlow active={hero.isCelebrating} style={[styles.hero, hero.isOver && styles.heroOver]}>
+            {hero.isCelebrating && (
+              <View
+                style={styles.winBanner}
+                accessible
+                accessibilityLiveRegion="polite"
+                accessibilityLabel={t('hero.savingsWinA11y', { amount: formatRand(hero.primaryValue) })}
+              >
+                <Text style={styles.winBannerText}>{'\u{1F389}'} {t('hero.savingsWin')}</Text>
+              </View>
+            )}
             <View style={styles.heroTop}>
               <View style={styles.heroText}>
                 <Text style={styles.heroTitle}>Zak-Buckz</Text>
                 <View style={styles.statsRow}>
                   <View style={styles.stat}>
                     <Text style={[styles.statLabel, { fontSize: fs(10) }]}>{t(hero.primaryLabelKey || 'hero.balance')}</Text>
-                    <Text style={styles.statValue}>{formatRand(hero.primaryValue)}</Text>
+                    <Text style={[styles.statValue, hero.isCelebrating && styles.statValueWin]}>{formatRand(hero.primaryValue)}</Text>
                   </View>
                   <View style={styles.stat}>
                     <Text style={[styles.statLabel, { fontSize: fs(10) }]}>{t('hero.target')}</Text>
@@ -142,7 +150,7 @@ export default function HomeScreen() {
               </View>
             )}
 
-            <Text style={[styles.motivation, { fontSize: fs(12) }]}>{motivation}</Text>
+            <Text style={[styles.motivation, { fontSize: fs(12) }, hero.isCelebrating && styles.motivationWin]}>{motivation}</Text>
 
             {forecastText ? (
               <View style={styles.forecast} accessibilityLiveRegion="polite">
@@ -161,7 +169,7 @@ export default function HomeScreen() {
                 <Text style={styles.addZaksText}>{t('home.addZaks')}</Text>
               </Pressable>
             )}
-          </View>
+          </SavingsGlow>
 
           <NextPaymentCard card={nextPayment} onPress={() => router.push('/ai-bot')} />
 
@@ -170,6 +178,7 @@ export default function HomeScreen() {
               const isTotal = item.key === 'total';
               const isOn = isTotal ? selectedKey === null : selectedKey === item.key;
               const over = !isTotal && item.visual.isOver;
+              const savedOver = !isTotal && item.key === 'savings' && item.spentAmount > item.targetAmount;
               return (
                 <Pressable
                   key={item.key}
@@ -179,7 +188,7 @@ export default function HomeScreen() {
                   accessibilityState={{ selected: isOn }}
                   accessibilityLabel={isTotal ? t('home.total') : catTitle(item.key)}
                 >
-                  <View style={[styles.pill, isOn && (over ? styles.pillOnOver : styles.pillOn)]}>
+                  <View style={[styles.pill, savedOver && styles.pillWin, isOn && (over ? styles.pillOnOver : savedOver ? styles.pillOnWin : styles.pillOn)]}>
                     {isTotal ? (
                       <FnbLogo width={30} height={30} />
                     ) : (
@@ -204,7 +213,7 @@ export default function HomeScreen() {
               <Text style={styles.actionText}>{t('home.addIncome')}</Text>
             </Pressable>
             <Pressable
-              style={({ pressed }) => [styles.actionCard, pressed && styles.actionPressed]}
+              style={({ pressed }) => [styles.actionCard, hero.isCelebrating && styles.actionCardWin, pressed && styles.actionPressed]}
               onPress={goAddExpense}
               accessibilityRole="button"
             >
@@ -251,6 +260,20 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
   },
   heroOver: { borderColor: theme.colors.warning, backgroundColor: theme.colors.warningSurface },
+  winBanner: {
+    alignSelf: 'flex-start',
+    marginBottom: theme.spacing.sm,
+    paddingVertical: 4,
+    paddingHorizontal: theme.spacing.sm + 4,
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.colors.celebrate,
+  },
+  winBannerText: { color: theme.colors.background, fontFamily: theme.fonts.bodyBold, fontSize: 13 },
+  statValueWin: { color: theme.colors.celebrate },
+  motivationWin: { color: theme.colors.celebrate },
+  pillWin: { borderColor: theme.colors.celebrate },
+  pillOnWin: { borderColor: theme.colors.celebrate, backgroundColor: theme.colors.celebrateStrong },
+  actionCardWin: { borderColor: theme.colors.celebrate, backgroundColor: theme.colors.celebrateSurface },
   heroTop: { flexDirection: 'row', alignItems: 'center' },
   heroText: { flex: 1 },
   heroTitle: { color: theme.colors.text, fontFamily: 'Nunito-MediumItalic', fontSize: 13 },

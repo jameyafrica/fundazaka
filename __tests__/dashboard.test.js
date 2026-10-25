@@ -40,6 +40,16 @@ describe('dashboard hero card', () => {
     expect(hero.primaryValue).toBe(300);
   });
 
+  test('savings past its target lights up as a celebration, and only savings does', () => {
+    const win = getHeroState(row('savings', 800, 500), totals);
+    expect(win.isCelebrating).toBe(true);
+    expect(win.motivationKind).toBe('savingsOver');
+    expect(getHeroState(row('savings', 300, 500), totals).isCelebrating).toBe(false);
+    expect(getHeroState(row('savings', 500, 500), totals).isCelebrating).toBe(false);
+    expect(getHeroState(row('transport', 1350, 1200), totals).isCelebrating).toBe(false);
+    expect(getHeroState(null, totals).isCelebrating).toBe(false);
+  });
+
   test('progress has five segments filled by band', () => {
     expect(getSegments(0)).toHaveLength(5);
     expect(getSegments(0.5).filter((s) => s.filled)).toHaveLength(3);

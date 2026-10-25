@@ -38,18 +38,19 @@ export function share(part, total) {
   return total > 0 ? Math.min(part / total, 1) : 0;
 }
 
-export function formatShortDate(iso) {
+// months: optional list of 12 short month names (from the language files). Defaults to English.
+export function formatShortDate(iso, months = MONTHS) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
-  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+  return `${d.getDate()} ${months[d.getMonth()] || MONTHS[d.getMonth()]}`;
 }
 
 // "15 Sep – 14 Oct 2026". Falls back gracefully if a date is missing.
-export function formatPeriod(startIso, endIso) {
-  const start = formatShortDate(startIso);
-  const end = formatShortDate(endIso);
+export function formatPeriod(startIso, endIso, months = MONTHS, earlierLabel = 'Earlier month') {
+  const start = formatShortDate(startIso, months);
+  const end = formatShortDate(endIso, months);
   const year = new Date(endIso).getFullYear();
-  if (!start && !end) return 'Earlier month';
+  if (!start && !end) return earlierLabel;
   if (!start) return `${end} ${year}`;
   if (!end) return start;
   return `${start} \u2013 ${end} ${year}`;

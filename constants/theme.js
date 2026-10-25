@@ -7,6 +7,10 @@ export const theme = {
     accent: '#00B4A2',
     warning: '#F97316',
     warningSurface: 'rgba(249, 115, 22, 0.22)',
+    // Savings celebration: a bright mint that is clearly not the orange warning and not the normal teal.
+    celebrate: '#34F5C5',
+    celebrateSurface: 'rgba(52, 245, 197, 0.16)',
+    celebrateStrong: 'rgba(52, 245, 197, 0.32)',
     text: '#FFFFFF',
     textMuted: 'rgba(255, 255, 255, 0.72)',
   },
@@ -31,3 +35,4 @@ export const theme = {
   },
   opacityTiers: [0.3, 0.41, 0.45, 0.46, 0.6, 0.8, 1],
 };
+

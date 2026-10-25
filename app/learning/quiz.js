@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -7,6 +7,8 @@ import { theme } from '../../constants/theme';
 import { getCourse } from '../../constants/courses';
 import { BADGES } from '../../constants/badges';
 import { useScale } from '../../hooks/useScale';
+import { useT } from '../../i18n/LanguageContext';
+import { localizeCourse } from '../../i18n/localizeContent';
 import { getCurrentStreak } from '../../utils/learning';
 import ScreenBackground from '../../components/ScreenBackground';
 
@@ -18,13 +20,15 @@ export default function QuizScreen() {
   const params = useLocalSearchParams();
   const courseId = Array.isArray(params.courseId) ? params.courseId[0] : params.courseId;
   const { user, learning, submitQuiz } = useBudget();
+  const { t, lang } = useT();
 
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState(null); // option picked for the current question
   const [answers, setAnswers] = useState([]);
   const [summary, setSummary] = useState(null); // { result, newBadges } once finished
 
-  const course = getCourse(courseId);
+  const baseCourse = getCourse(courseId);
+  const course = useMemo(() => localizeCourse(baseCourse, lang), [baseCourse, lang]);
 
   if (!user) return <Redirect href="/(auth)/login" />;
   if (!course || !course.quiz.length) return <Redirect href="/learning" />;
@@ -90,15 +94,13 @@ export default function QuizScreen() {
         </Text>
         <Text style={styles.resultPercent}>{result.percent}%</Text>
         <Text style={styles.resultMessage}>
-          {result.passed
-            ? 'Lekker! You know this stuff.'
-            : 'Good try. Read the lessons again and give it another go.'}
+          {result.passed ? t('ln.pass') : t('ln.fail')}
         </Text>
 
         {streak > 0 ? (
           <View style={styles.infoCard}>
             <Text style={styles.infoText}>
-              {'\u{1F525}'} {streak} day{streak === 1 ? '' : 's'} learning streak
+              {'\u{1F525}'} {t(streak === 1 ? 'ln.streakLineOne' : 'ln.streakLineMany', { count: streak })}
             </Text>
           </View>
         ) : null}
@@ -107,17 +109,17 @@ export default function QuizScreen() {
           <View key={badge.id} style={styles.badgeBanner}>
             <Text style={styles.badgeBannerIcon}>{badge.icon}</Text>
             <View style={styles.badgeBannerText}>
-              <Text style={styles.badgeBannerTitle}>New badge: {badge.title}</Text>
-              <Text style={styles.badgeBannerDesc}>{badge.description}</Text>
+              <Text style={styles.badgeBannerTitle}>{t('ln.newBadge', { title: t(`badge.${badge.id}.title`) })}</Text>
+              <Text style={styles.badgeBannerDesc}>{t(`badge.${badge.id}.desc`)}</Text>
             </View>
           </View>
         ))}
 
         <Pressable onPress={retry} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]} accessibilityRole="button">
-          <Text style={styles.primaryText}>Try again</Text>
+          <Text style={styles.primaryText}>{t('ln.tryAgain')}</Text>
         </Pressable>
         <Pressable onPress={exit} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]} accessibilityRole="button">
-          <Text style={styles.secondaryText}>Back to course</Text>
+          <Text style={styles.secondaryText}>{t('ln.backToCourse')}</Text>
         </Pressable>
       </>
     );
@@ -126,7 +128,7 @@ export default function QuizScreen() {
   const renderQuestion = () => (
     <>
       <Text style={styles.counter}>
-        Question {index + 1} of {questions.length}
+        {t('ln.questionOf', { n: index + 1, total: questions.length })}
       </Text>
       <View style={styles.progressTrack}>
         <View
@@ -146,7 +148,7 @@ export default function QuizScreen() {
           disabled={answered}
           style={({ pressed }) => [styles.option, optionStyle(optionIndex), pressed && !answered && styles.pressed]}
           accessibilityRole="button"
-          accessibilityLabel={`Option ${LETTERS[optionIndex]}, ${option}`}
+          accessibilityLabel={t('ln.optionA11y', { letter: LETTERS[optionIndex], text: option })}
           accessibilityState={{ selected: selected === optionIndex, disabled: answered }}
         >
           <Text style={styles.optionLetter}>{LETTERS[optionIndex]}</Text>
@@ -157,7 +159,7 @@ export default function QuizScreen() {
       {answered ? (
         <View style={[styles.feedback, selected === question.correctIndex ? styles.feedbackCorrect : styles.feedbackWrong]}>
           <Text style={styles.feedbackTitle}>
-            {selected === question.correctIndex ? 'Correct!' : 'Not quite.'}
+            {selected === question.correctIndex ? t('ln.correct') : t('ln.notQuite')}
           </Text>
           <Text style={styles.feedbackText}>{question.explanation}</Text>
         </View>
@@ -170,7 +172,7 @@ export default function QuizScreen() {
         accessibilityRole="button"
         accessibilityState={{ disabled: !answered }}
       >
-        <Text style={styles.primaryText}>{isLast ? 'See results' : 'Next question'}</Text>
+        <Text style={styles.primaryText}>{isLast ? t('ln.seeResults') : t('ln.nextQuestion')}</Text>
       </Pressable>
     </>
   );
@@ -185,13 +187,13 @@ export default function QuizScreen() {
               onPress={exit}
               hitSlop={12}
               accessibilityRole="button"
-              accessibilityLabel="Close quiz"
+              accessibilityLabel={t('ln.closeQuiz')}
               style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
             >
               <Text style={styles.closeText}>{'\u2715'}</Text>
             </Pressable>
             <Text style={styles.headerTitle} numberOfLines={1}>
-              {course.title} quiz
+              {t('ln.quizTitle', { course: course.title })}
             </Text>
             <View style={styles.headerButton} />
           </View>

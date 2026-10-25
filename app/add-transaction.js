@@ -13,7 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useBudget } from '../context/BudgetContext';
 import { theme } from '../constants/theme';
-import { CATEGORY_META } from '../constants/categories';
+import { useT } from '../i18n/LanguageContext';
+import { localizeError } from '../i18n/errors';
 import { useScale } from '../hooks/useScale';
 import { formatRand } from '../utils/format';
 import { addMoney, parseMoney, subtractMoney } from '../utils/money';
@@ -21,16 +22,13 @@ import { buildWindfallPlan, describeWindfallPlan, isWindfall } from '../utils/wi
 import ScreenBackground from '../components/ScreenBackground';
 import CategoryIcon from '../components/CategoryIcon';
 
-const SOURCES = [
-  { key: 'work', label: 'Work' },
-  { key: 'gift', label: 'Gift' },
-  { key: 'other', label: 'Other' },
-];
+const SOURCES = ['work', 'gift', 'other'];
 
 
 export default function AddTransactionScreen() {
   const router = useRouter();
   const scale = useScale();
+  const { t } = useT();
   const params = useLocalSearchParams();
   const { user, categoryRows, logIncome, payExpense, transactions, monthlyReports } = useBudget();
 
@@ -51,7 +49,7 @@ export default function AddTransactionScreen() {
   // "1e308", "12e3", "0x10" and amounts above R9 999 999.99 are rejected with a clear message.
   const parsedAmount = amountText.trim() ? parseMoney(amountText) : null;
   const amount = parsedAmount && parsedAmount.ok ? parsedAmount.amount : 0;
-  const amountProblem = parsedAmount && !parsedAmount.ok ? parsedAmount.error : '';
+  const amountProblem = parsedAmount && !parsedAmount.ok ? localizeError(t, parsedAmount.error) : '';
   const selectedRow = categoryRows.find((row) => row.key === categoryKey) || null;
   const isSavings = categoryKey === 'savings';
   const isIncome = mode === 'income';
@@ -60,22 +58,23 @@ export default function AddTransactionScreen() {
   const preview = useMemo(() => {
     if (isIncome || !selectedRow || amount <= 0) return null;
     const after = addMoney(selectedRow.spentAmount, amount);
+    const title = t(`cat.${categoryKey}.title`);
     if (isSavings) {
       const left = subtractMoney(selectedRow.targetAmount, after);
       return left >= 0
-        ? { tone: 'info', text: `${formatRand(left)} left to reach your savings target.` }
-        : { tone: 'info', text: `Target reached. That is ${formatRand(-left)} extra saved!` };
+        ? { tone: 'info', text: t('tx.previewSavingsLeft', { amount: formatRand(left) }) }
+        : { tone: 'success', text: t('tx.previewSavingsReached', { amount: formatRand(-left) }) };
     }
     const left = subtractMoney(selectedRow.targetAmount, after);
     return left >= 0
-      ? { tone: 'info', text: `${formatRand(left)} will be left in ${CATEGORY_META[categoryKey].title}.` }
-      : { tone: 'warning', text: `This puts ${CATEGORY_META[categoryKey].title} ${formatRand(-left)} over target.` };
-  }, [isIncome, selectedRow, amount, isSavings, categoryKey]);
+      ? { tone: 'info', text: t('tx.previewLeft', { amount: formatRand(left), title }) }
+      : { tone: 'warning', text: t('tx.previewOver', { title, amount: formatRand(-left) }) };
+  }, [isIncome, selectedRow, amount, isSavings, categoryKey, t]);
 
   if (!user) return <Redirect href="/(auth)/login" />;
 
   const fs = (size) => Math.max(11, scale(size));
-  const actionLabel = isIncome ? 'Add Income' : isSavings ? 'Add Savings' : 'Pay Expense';
+  const actionLabel = isIncome ? t('home.addIncome') : isSavings ? t('home.addSavings') : t('home.payExpense');
 
   const switchMode = (next) => {
     setMode(next);
@@ -91,7 +90,7 @@ export default function AddTransactionScreen() {
       : payExpense({ amount, categoryKey, note: note.trim() });
 
     if (!result.ok) {
-      setError(result.error);
+      setError(localizeError(t, result.error));
       return;
     }
     if (bigPayment) {
@@ -111,7 +110,7 @@ export default function AddTransactionScreen() {
     if (!windfall) return;
     const result = payExpense({ amount: windfall.plan.toSavings, categoryKey: 'savings', note: 'Windfall' });
     if (!result.ok) {
-      setError(result.error);
+      setError(localizeError(t, result.error));
       return;
     }
     if (router.canGoBack()) router.back();
@@ -130,11 +129,11 @@ export default function AddTransactionScreen() {
         <ScreenBackground />
         <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
           <View style={styles.windfallWrap}>
-            <Text style={styles.windfallTitle}>Nice one!</Text>
+            <Text style={styles.windfallTitle}>{t('tx.windfallTitle')}</Text>
             <View style={styles.windfallCard}>
-              <Text style={styles.windfallText}>{describeWindfallPlan(windfall.amount, windfall.plan)}</Text>
+              <Text style={styles.windfallText}>{describeWindfallPlan(windfall.amount, windfall.plan, t)}</Text>
               {!windfall.hasSavings && (
-                <Text style={styles.windfallHint}>Add Savings as one of your expenses to put money aside in one tap.</Text>
+                <Text style={styles.windfallHint}>{t('tx.windfallHint')}</Text>
               )}
             </View>
             {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -143,18 +142,18 @@ export default function AddTransactionScreen() {
                 onPress={onAddWindfallSavings}
                 style={({ pressed }) => [styles.saveButton, pressed && styles.pressed]}
                 accessibilityRole="button"
-                accessibilityLabel="Add to savings"
+                accessibilityLabel={t('tx.addToSavingsA11y')}
               >
-                <Text style={styles.saveText}>{`Add ${formatRand(windfall.plan.toSavings)} to savings`}</Text>
+                <Text style={styles.saveText}>{t('tx.addToSavings', { amount: formatRand(windfall.plan.toSavings) })}</Text>
               </Pressable>
             )}
             <Pressable
               onPress={close}
               style={({ pressed }) => [styles.windfallSkip, pressed && styles.pressed]}
               accessibilityRole="button"
-              accessibilityLabel="Done"
+              accessibilityLabel={t('common.done')}
             >
-              <Text style={styles.windfallSkipText}>{canSave ? 'Not now' : 'Done'}</Text>
+              <Text style={styles.windfallSkipText}>{canSave ? t('tx.notNow') : t('common.done')}</Text>
             </Pressable>
           </View>
         </SafeAreaView>
@@ -180,7 +179,7 @@ export default function AddTransactionScreen() {
                 onPress={close}
                 hitSlop={12}
                 accessibilityRole="button"
-                accessibilityLabel="Close"
+                accessibilityLabel={t('common.close')}
                 style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
               >
                 <Text style={styles.closeText}>✕</Text>
@@ -191,8 +190,8 @@ export default function AddTransactionScreen() {
 
             <View style={styles.toggle}>
               {[
-                { key: 'income', label: 'Income' },
-                { key: 'expense', label: 'Expense' },
+                { key: 'income', label: t('tx.income') },
+                { key: 'expense', label: t('tx.expense') },
               ].map((item) => {
                 const active = mode === item.key;
                 return (
@@ -209,7 +208,7 @@ export default function AddTransactionScreen() {
               })}
             </View>
 
-            <Text style={styles.label}>Amount</Text>
+            <Text style={styles.label}>{t('common.amount')}</Text>
             <View style={[styles.card, styles.amountCard]}>
               <Text style={[styles.currency, { fontSize: fs(34) }]}>R</Text>
               <TextInput
@@ -224,25 +223,25 @@ export default function AddTransactionScreen() {
                 keyboardType="decimal-pad"
                 autoFocus
                 maxLength={12}
-                accessibilityLabel="Amount in rand"
+                accessibilityLabel={t('tx.amountA11y')}
               />
             </View>
 
             {isIncome ? (
               <>
-                <Text style={styles.label}>Where did it come from?</Text>
+                <Text style={styles.label}>{t('tx.whereFrom')}</Text>
                 <View style={styles.chipRow}>
-                  {SOURCES.map((item) => {
-                    const active = source === item.key;
+                  {SOURCES.map((key) => {
+                    const active = source === key;
                     return (
                       <Pressable
-                        key={item.key}
-                        onPress={() => setSource(item.key)}
+                        key={key}
+                        onPress={() => setSource(key)}
                         style={[styles.chip, active && styles.chipActive]}
                         accessibilityRole="button"
                         accessibilityState={{ selected: active }}
                       >
-                        <Text style={[styles.chipText, active && styles.chipTextActive]}>{item.label}</Text>
+                        <Text style={[styles.chipText, active && styles.chipTextActive]}>{t(`income.${key}`)}</Text>
                       </Pressable>
                     );
                   })}
@@ -250,10 +249,10 @@ export default function AddTransactionScreen() {
               </>
             ) : (
               <>
-                <Text style={styles.label}>Which expense?</Text>
+                <Text style={styles.label}>{t('tx.whichExpense')}</Text>
                 {categoryRows.length === 0 ? (
                   <View style={styles.card}>
-                    <Text style={styles.emptyText}>You have no expenses set up yet.</Text>
+                    <Text style={styles.emptyText}>{t('tx.noExpenses')}</Text>
                   </View>
                 ) : (
                   <View style={styles.categoryGrid}>
@@ -273,11 +272,11 @@ export default function AddTransactionScreen() {
                           ]}
                           accessibilityRole="button"
                           accessibilityState={{ selected: active }}
-                          accessibilityLabel={CATEGORY_META[row.key].title}
+                          accessibilityLabel={t(`cat.${row.key}.title`)}
                         >
                           <CategoryIcon categoryKey={row.key} size={32} variant="pill" visual={row.visual} />
                           <Text style={styles.categoryText} numberOfLines={1}>
-                            {CATEGORY_META[row.key].shortTitle}
+                            {t(`cat.${row.key}.short`)}
                           </Text>
                         </Pressable>
                       );
@@ -287,22 +286,22 @@ export default function AddTransactionScreen() {
               </>
             )}
 
-            <Text style={styles.label}>Note (optional)</Text>
+            <Text style={styles.label}>{t('tx.noteOptional')}</Text>
             <View style={styles.card}>
               <TextInput
                 style={styles.noteInput}
                 value={note}
                 onChangeText={setNote}
-                placeholder={isIncome ? 'e.g. Saturday delivery shift' : 'e.g. Taxi to town'}
+                placeholder={isIncome ? t('tx.placeholderIncome') : t('tx.placeholderExpense')}
                 placeholderTextColor="rgba(255,255,255,0.35)"
                 maxLength={60}
-                accessibilityLabel="Note"
+                accessibilityLabel={t('common.note')}
               />
             </View>
 
             {preview && (
-              <View style={[styles.preview, preview.tone === 'warning' && styles.previewWarning]}>
-                <Text style={[styles.previewText, preview.tone === 'warning' && styles.previewTextWarning]}>
+              <View style={[styles.preview, preview.tone === 'warning' && styles.previewWarning, preview.tone === 'success' && styles.previewSuccess]}>
+                <Text style={[styles.previewText, preview.tone === 'warning' && styles.previewTextWarning, preview.tone === 'success' && styles.previewTextSuccess]}>
                   {preview.text}
                 </Text>
               </View>
@@ -440,6 +439,8 @@ const styles = StyleSheet.create({
   previewWarning: { backgroundColor: theme.colors.warningSurface, borderColor: theme.colors.warning },
   previewText: { color: theme.colors.text, fontFamily: theme.fonts.bodySemiBold, fontSize: 14 },
   previewTextWarning: { color: theme.colors.warning },
+  previewSuccess: { borderColor: theme.colors.celebrate, backgroundColor: theme.colors.celebrateSurface },
+  previewTextSuccess: { color: theme.colors.celebrate },
 
   error: {
     color: theme.colors.warning,

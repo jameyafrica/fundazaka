@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect, useRouter } from 'expo-router';
@@ -7,6 +7,8 @@ import { theme } from '../../constants/theme';
 import { COURSES } from '../../constants/courses';
 import { BADGES } from '../../constants/badges';
 import { useScale } from '../../hooks/useScale';
+import { useT } from '../../i18n/LanguageContext';
+import { localizeCourses } from '../../i18n/localizeContent';
 import {
   getCourseProgress,
   getCurrentStreak,
@@ -17,16 +19,18 @@ import ScreenBackground from '../../components/ScreenBackground';
 import NavBar from '../../components/NavBar';
 import { CourseIcon, StreakIcon } from '../../components/LearningIcons';
 
-function courseAction(progress) {
-  if (progress.complete) return 'Review';
-  if (progress.done > 0) return 'Continue';
-  return 'Start';
+function courseAction(t, progress) {
+  if (progress.complete) return t('ln.review');
+  if (progress.done > 0) return t('ln.continue');
+  return t('ln.start');
 }
 
 export default function LearningHubScreen() {
   const router = useRouter();
   const scale = useScale();
+  const { t, lang } = useT();
   const { user, learning } = useBudget();
+  const courses = useMemo(() => localizeCourses(COURSES, lang), [lang]);
 
   if (!user) return <Redirect href="/(auth)/login" />;
 
@@ -36,10 +40,10 @@ export default function LearningHubScreen() {
   const earned = new Set(learning.badges);
 
   const streakMessage = learnedToday
-    ? 'Nice work today. Come back tomorrow to keep it going.'
+    ? t('ln.streakDone')
     : streak > 0
-      ? 'Learn something today to keep your streak alive.'
-      : 'Finish a lesson today to start your streak.';
+      ? t('ln.streakKeep')
+      : t('ln.streakStart');
 
   const close = () => {
     if (router.canGoBack()) router.back();
@@ -56,15 +60,15 @@ export default function LearningHubScreen() {
               onPress={close}
               hitSlop={12}
               accessibilityRole="button"
-              accessibilityLabel="Back"
+              accessibilityLabel={t('common.backA11y')}
               style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
             >
               <Text style={styles.headerIcon}>{'\u2039'}</Text>
             </Pressable>
-            <Text style={[styles.title, { fontSize: fs(24) }]}>Learn</Text>
+            <Text style={[styles.title, { fontSize: fs(24) }]}>{t('ln.title')}</Text>
             <View style={styles.headerButton} />
           </View>
-          <Text style={styles.subtitle}>Short lessons that work offline. No data needed.</Text>
+          <Text style={styles.subtitle}>{t('ln.subtitle')}</Text>
 
           <View style={styles.streakCard}>
             <View style={styles.iconBox}>
@@ -72,16 +76,16 @@ export default function LearningHubScreen() {
             </View>
             <View style={styles.streakText}>
               <Text style={[styles.streakNumber, { fontSize: fs(30) }]}>
-                {streak} {streak === 1 ? 'day' : 'days'}
+                {t(streak === 1 ? 'ln.dayOne' : 'ln.dayMany', { count: streak })}
               </Text>
               <Text style={styles.streakMessage}>{streakMessage}</Text>
               {learning.bestStreak > 0 ? (
-                <Text style={styles.streakBest}>Best streak: {learning.bestStreak}</Text>
+                <Text style={styles.streakBest}>{t('ln.bestStreak', { count: learning.bestStreak })}</Text>
               ) : null}
             </View>
           </View>
 
-          <Text style={styles.sectionTitle}>Badges</Text>
+          <Text style={styles.sectionTitle}>{t('ln.badges')}</Text>
           <View style={styles.badgeGrid}>
             {BADGES.map((badge) => {
               const has = earned.has(badge.id);
@@ -90,22 +94,22 @@ export default function LearningHubScreen() {
                   key={badge.id}
                   style={[styles.badgeTile, !has && styles.badgeLocked]}
                   accessible
-                  accessibilityLabel={`${badge.title}. ${has ? 'Earned' : 'Locked'}. ${badge.description}`}
+                  accessibilityLabel={t('ln.badgeA11y', { title: t(`badge.${badge.id}.title`), status: has ? t('ln.earned') : t('ln.locked'), description: t(`badge.${badge.id}.desc`) })}
                 >
                   <Text style={styles.badgeIcon}>{has ? badge.icon : '\u{1F512}'}</Text>
                   <Text style={styles.badgeTitle} numberOfLines={1}>
-                    {badge.title}
+                    {t(`badge.${badge.id}.title`)}
                   </Text>
                   <Text style={styles.badgeDesc} numberOfLines={2}>
-                    {badge.description}
+                    {t(`badge.${badge.id}.desc`)}
                   </Text>
                 </View>
               );
             })}
           </View>
 
-          <Text style={styles.sectionTitle}>Courses</Text>
-          {COURSES.map((course) => {
+          <Text style={styles.sectionTitle}>{t('ln.courses')}</Text>
+          {courses.map((course) => {
             const progress = getCourseProgress(learning, course);
             const next = getNextLesson(learning, course);
             const quiz = learning.quizScores[course.id];
@@ -115,7 +119,7 @@ export default function LearningHubScreen() {
                 onPress={() => router.push(`/learning/${course.id}`)}
                 style={({ pressed }) => [styles.courseCard, pressed && styles.pressed]}
                 accessibilityRole="button"
-                accessibilityLabel={`${course.title}. ${progress.done} of ${progress.total} lessons done.`}
+                accessibilityLabel={t('ln.courseA11y', { title: course.title, done: progress.done, total: progress.total })}
               >
                 <View style={styles.courseTop}>
                   <View style={styles.iconBox}>
@@ -133,11 +137,11 @@ export default function LearningHubScreen() {
                 </View>
                 <View style={styles.courseBottom}>
                   <Text style={styles.courseMeta}>
-                    {progress.done}/{progress.total} lessons
-                    {quiz ? ` \u00B7 Quiz best ${quiz.bestPercent}%` : ''}
+                    {t('ln.lessonsCount', { done: progress.done, total: progress.total })}
+                    {quiz ? ` \u00B7 ${t('ln.quizBestShort', { percent: quiz.bestPercent })}` : ''}
                   </Text>
                   <Text style={styles.courseAction}>
-                    {courseAction(progress)}
+                    {courseAction(t, progress)}
                     {next && progress.done > 0 ? ': ' + next.title : ''}
                   </Text>
                 </View>

@@ -4,7 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect, useRouter } from 'expo-router';
 import { useBudget } from '../context/BudgetContext';
 import { theme } from '../constants/theme';
-import { CATEGORY_META } from '../constants/categories';
+import { useT } from '../i18n/LanguageContext';
+import { localizeError } from '../i18n/errors';
 import { useScale } from '../hooks/useScale';
 import { formatRand } from '../utils/format';
 import {
@@ -15,15 +16,15 @@ import {
   share,
   summarise,
 } from '../utils/breakdown';
-import { describePattern, getWeekdayPatterns } from '../utils/weekday';
+import { getWeekdayPatterns } from '../utils/weekday';
 import ScreenBackground from '../components/ScreenBackground';
 import NavBar from '../components/NavBar';
 
-const TAB_LABELS = { all: 'All', income: 'Income', expenses: 'Expenses' };
-const SOURCE_LABELS = { work: 'Work', gift: 'Gift', other: 'Other' };
 
-function categoryTitle(key) {
-  return CATEGORY_META[key] ? CATEGORY_META[key].title : key;
+// Title of one transaction row: the income source or the expense category, in the chosen language.
+function rowTitle(tr, t) {
+  if (t.type === 'income') return t.source ? tr(`income.${t.source}`) : tr('tx.income');
+  return t.categoryKey ? tr(`cat.${t.categoryKey}.title`) : '';
 }
 
 function Bar({ fraction, color }) {
@@ -50,10 +51,10 @@ function StatCard({ label, value, tone, fs }) {
   );
 }
 
-function TransactionRow({ t, isLast, onEdit, onDelete }) {
+function TransactionRow({ t, tr, months, isLast, onEdit, onDelete }) {
   const isIncome = t.type === 'income';
-  const title = isIncome ? SOURCE_LABELS[t.source] || 'Income' : categoryTitle(t.categoryKey);
-  const subtitle = [formatShortDate(t.createdAt), t.note].filter(Boolean).join(' \u00B7 ');
+  const title = rowTitle(tr, t);
+  const subtitle = [formatShortDate(t.createdAt, months), t.note].filter(Boolean).join(' \u00B7 ');
   const amountText = `${isIncome ? '+' : '\u2212'}${formatRand(t.amount)}`;
   return (
     <View style={[styles.txRow, !isLast && styles.rowBorder]}>
@@ -73,10 +74,10 @@ function TransactionRow({ t, isLast, onEdit, onDelete }) {
           onPress={() => onEdit(t)}
           hitSlop={6}
           accessibilityRole="button"
-          accessibilityLabel={`Edit ${title} ${formatRand(t.amount)}`}
+          accessibilityLabel={tr('bd.editItemA11y', { title, amount: formatRand(t.amount) })}
           style={({ pressed }) => [styles.txAction, pressed && styles.pressed]}
         >
-          <Text style={styles.txActionText}>Edit</Text>
+          <Text style={styles.txActionText}>{tr('common.edit')}</Text>
         </Pressable>
       )}
       {onDelete && (
@@ -84,10 +85,10 @@ function TransactionRow({ t, isLast, onEdit, onDelete }) {
           onPress={() => onDelete(t)}
           hitSlop={6}
           accessibilityRole="button"
-          accessibilityLabel={`Delete ${title} ${formatRand(t.amount)}`}
+          accessibilityLabel={tr('bd.deleteItemA11y', { title, amount: formatRand(t.amount) })}
           style={({ pressed }) => [styles.txAction, styles.txActionDelete, pressed && styles.pressed]}
         >
-          <Text style={[styles.txActionText, styles.textWarning]}>Delete</Text>
+          <Text style={[styles.txActionText, styles.textWarning]}>{tr('common.delete')}</Text>
         </Pressable>
       )}
     </View>
@@ -97,6 +98,9 @@ function TransactionRow({ t, isLast, onEdit, onDelete }) {
 export default function BreakdownScreen() {
   const router = useRouter();
   const scale = useScale();
+  const { t: tr, tList } = useT();
+  const months = tList('date.months');
+  const weekdays = tList('date.weekdays');
   const { user, categories, transactions, monthlyReports, cycleStartedAt, removeTransaction, updateTransaction } = useBudget();
 
   const [monthMode, setMonthMode] = useState('current'); // 'current' | 'previous'
@@ -112,15 +116,15 @@ export default function BreakdownScreen() {
   // The period being shown, in the same shape for the current month and archived ones.
   const period = useMemo(() => {
     if (isCurrent) {
-      return { categories, transactions, label: formatPeriod(cycleStartedAt, new Date().toISOString()) };
+      return { categories, transactions, label: formatPeriod(cycleStartedAt, new Date().toISOString(), months, tr('date.earlierMonth')) };
     }
     if (!report) return null;
     return {
       categories: report.categories,
       transactions: report.transactions || [],
-      label: formatPeriod(report.periodStart, report.periodEnd),
+      label: formatPeriod(report.periodStart, report.periodEnd, months, tr('date.earlierMonth')),
     };
-  }, [isCurrent, categories, transactions, cycleStartedAt, report]);
+  }, [isCurrent, categories, transactions, cycleStartedAt, report, months, tr]);
 
   const summary = useMemo(
     () => (period ? summarise(period.categories, period.transactions) : null),
@@ -145,14 +149,14 @@ export default function BreakdownScreen() {
       id: t.id,
       amountText: String(t.amount),
       note: t.note || '',
-      title: t.type === 'income' ? SOURCE_LABELS[t.source] || 'Income' : categoryTitle(t.categoryKey),
+      title: rowTitle(tr, t),
     });
   };
   const saveEdit = () => {
     if (!editing) return;
     const result = updateTransaction(editing.id, { amount: editing.amountText, note: editing.note });
     if (!result.ok) {
-      setEditError(result.error);
+      setEditError(localizeError(tr, result.error));
       return;
     }
     setEditing(null);
@@ -185,14 +189,14 @@ export default function BreakdownScreen() {
 
   const renderIncomeBreakdown = () => (
     <View style={styles.card}>
-      <Text style={styles.cardTitle}>Where it came from</Text>
+      <Text style={styles.cardTitle}>{tr('bd.whereFrom')}</Text>
       {incomeRows.length === 0 ? (
-        <Text style={styles.emptyText}>No income logged for this month.</Text>
+        <Text style={styles.emptyText}>{tr('bd.noIncome')}</Text>
       ) : (
         incomeRows.map((row) => (
           <View key={row.key} style={styles.breakRow}>
             <View style={styles.breakTop}>
-              <Text style={styles.breakName}>{SOURCE_LABELS[row.key]}</Text>
+              <Text style={styles.breakName}>{tr(`income.${row.key}`)}</Text>
               <Text style={styles.breakAmount}>{formatRand(row.amount)}</Text>
             </View>
             <Bar fraction={share(row.amount, summary.totalIncome)} color={theme.colors.accent} />
@@ -204,21 +208,21 @@ export default function BreakdownScreen() {
 
   const renderExpenseBreakdown = () => (
     <View style={styles.card}>
-      <Text style={styles.cardTitle}>Spent vs target</Text>
+      <Text style={styles.cardTitle}>{tr('bd.spentVsTarget')}</Text>
       {summary.categoryRows.length === 0 ? (
-        <Text style={styles.emptyText}>No expenses set up for this month.</Text>
+        <Text style={styles.emptyText}>{tr('bd.noExpenses')}</Text>
       ) : (
         summary.categoryRows.map((row) => (
           <View key={row.key} style={styles.breakRow}>
             <View style={styles.breakTop}>
-              <Text style={styles.breakName}>{categoryTitle(row.key)}</Text>
+              <Text style={styles.breakName}>{tr(`cat.${row.key}.title`)}</Text>
               <Text style={[styles.breakAmount, row.isOver && styles.textWarning]}>
                 {formatRand(row.spentAmount)} / {formatRand(row.targetAmount)}
               </Text>
             </View>
             <Bar fraction={row.ratio} color={row.isOver ? theme.colors.warning : theme.colors.accent} />
             {row.isOver ? (
-              <Text style={styles.overText}>Over by {formatRand(row.overAmount)}</Text>
+              <Text style={styles.overText}>{tr('bd.overBy', { amount: formatRand(row.overAmount) })}</Text>
             ) : null}
           </View>
         ))
@@ -236,17 +240,17 @@ export default function BreakdownScreen() {
               onPress={close}
               hitSlop={12}
               accessibilityRole="button"
-              accessibilityLabel="Back"
+              accessibilityLabel={tr('common.backA11y')}
               style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
             >
               <Text style={styles.headerIcon}>{'\u2039'}</Text>
             </Pressable>
-            <Text style={[styles.title, { fontSize: fs(24) }]}>Breakdown</Text>
+            <Text style={[styles.title, { fontSize: fs(24) }]}>{tr('home.breakdown')}</Text>
             <View style={styles.headerButton} />
           </View>
 
           {renderSegment(['current', 'previous'], monthMode, setMonthMode, (m) =>
-            m === 'current' ? 'Current Month' : 'Previous Months'
+            m === 'current' ? tr('bd.current') : tr('bd.previous')
           )}
 
           {reports.length > 0 && (
@@ -254,11 +258,11 @@ export default function BreakdownScreen() {
               onPress={() => router.push('/income-proof')}
               style={({ pressed }) => [styles.proofCard, pressed && styles.pressed]}
               accessibilityRole="button"
-              accessibilityLabel="Proof of income"
+              accessibilityLabel={tr('bd.proofTitle')}
             >
               <View style={styles.proofText}>
-                <Text style={styles.proofTitle}>Proof of income</Text>
-                <Text style={styles.proofSub}>Average, lowest and highest month. Share it when you apply for credit.</Text>
+                <Text style={styles.proofTitle}>{tr('bd.proofTitle')}</Text>
+                <Text style={styles.proofSub}>{tr('bd.proofSub')}</Text>
               </View>
               <Text style={styles.proofChevron}>{'\u203A'}</Text>
             </Pressable>
@@ -281,7 +285,7 @@ export default function BreakdownScreen() {
                     accessibilityState={{ selected: Boolean(active) }}
                   >
                     <Text style={[styles.periodText, active && styles.periodTextActive]}>
-                      {formatPeriod(r.periodStart, r.periodEnd)}
+                      {formatPeriod(r.periodStart, r.periodEnd, months, tr('date.earlierMonth'))}
                     </Text>
                   </Pressable>
                 );
@@ -291,23 +295,23 @@ export default function BreakdownScreen() {
 
           {!period ? (
             <View style={[styles.card, styles.emptyCard]}>
-              <Text style={styles.emptyTitle}>No previous months yet</Text>
+              <Text style={styles.emptyTitle}>{tr('bd.noPrevTitle')}</Text>
               <Text style={styles.emptyText}>
-                Your first report appears after your monthly reset, when this month is archived.
+                {tr('bd.noPrevBody')}
               </Text>
             </View>
           ) : (
             <>
               <Text style={styles.periodLabel}>{period.label}</Text>
 
-              {renderSegment(TABS, tab, setTab, (t) => TAB_LABELS[t])}
+              {renderSegment(TABS, tab, setTab, (k) => tr(`bd.tab.${k}`))}
 
               {tab === 'all' && (
                 <View style={styles.statRow}>
-                  <StatCard label="Income" value={summary.totalIncome} fs={fs} />
-                  <StatCard label="Expenses" value={summary.totalExpenses} fs={fs} />
+                  <StatCard label={tr('bd.tab.income')} value={summary.totalIncome} fs={fs} />
+                  <StatCard label={tr('bd.tab.expenses')} value={summary.totalExpenses} fs={fs} />
                   <StatCard
-                    label="Balance"
+                    label={tr('hero.balance')}
                     value={summary.balance}
                     tone={summary.balance < 0 ? 'warning' : undefined}
                     fs={fs}
@@ -318,7 +322,7 @@ export default function BreakdownScreen() {
               {tab === 'income' && (
                 <>
                   <View style={styles.totalCard}>
-                    <Text style={styles.statLabel}>Total income</Text>
+                    <Text style={styles.statLabel}>{tr('bd.totalIncome')}</Text>
                     <Text style={[styles.totalValue, { fontSize: fs(34) }]} numberOfLines={1} adjustsFontSizeToFit>
                       {formatRand(summary.totalIncome)}
                     </Text>
@@ -330,7 +334,7 @@ export default function BreakdownScreen() {
               {tab === 'expenses' && (
                 <>
                   <View style={styles.totalCard}>
-                    <Text style={styles.statLabel}>Total expenses</Text>
+                    <Text style={styles.statLabel}>{tr('bd.totalExpenses')}</Text>
                     <Text style={[styles.totalValue, { fontSize: fs(34) }]} numberOfLines={1} adjustsFontSizeToFit>
                       {formatRand(summary.totalExpenses)}
                     </Text>
@@ -341,24 +345,26 @@ export default function BreakdownScreen() {
 
               {tab === 'expenses' && patterns.length > 0 && (
                 <View style={styles.card}>
-                  <Text style={styles.cardTitle}>Spending pattern</Text>
+                  <Text style={styles.cardTitle}>{tr('bd.pattern')}</Text>
                   {patterns.slice(0, 2).map((p) => (
                     <Text key={p.key} style={styles.patternText}>
-                      {describePattern(p)}
+                      {tr('bd.patternLine', { percent: p.percent, category: tr(`cat.${p.key}.title`).toLowerCase(), day: weekdays[p.dayIndex] || p.dayName })}
                     </Text>
                   ))}
                 </View>
               )}
 
               <View style={styles.card}>
-                <Text style={styles.cardTitle}>Transactions ({list.length})</Text>
+                <Text style={styles.cardTitle}>{tr('bd.transactions', { count: list.length })}</Text>
                 {list.length === 0 ? (
-                  <Text style={styles.emptyText}>Nothing logged here yet.</Text>
+                  <Text style={styles.emptyText}>{tr('bd.empty')}</Text>
                 ) : (
                   list.map((t, index) => (
                     <TransactionRow
                       key={t.id}
                       t={t}
+                      tr={tr}
+                      months={months}
                       isLast={index === list.length - 1}
                       onEdit={isCurrent ? startEdit : undefined}
                       onDelete={isCurrent ? (item) => removeTransaction(item.id) : undefined}
@@ -375,8 +381,8 @@ export default function BreakdownScreen() {
       <Modal visible={Boolean(editing)} transparent animationType="fade" onRequestClose={() => setEditing(null)}>
         <KeyboardAvoidingView style={styles.modalBackdrop} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Edit {editing ? editing.title : ''}</Text>
-            <Text style={styles.modalLabel}>Amount</Text>
+            <Text style={styles.modalTitle}>{tr('bd.editTitle', { title: editing ? editing.title : '' })}</Text>
+            <Text style={styles.modalLabel}>{tr('common.amount')}</Text>
             <TextInput
               style={styles.modalInput}
               value={editing ? editing.amountText : ''}
@@ -387,16 +393,16 @@ export default function BreakdownScreen() {
               keyboardType="decimal-pad"
               maxLength={12}
               autoFocus
-              accessibilityLabel="Edit amount in rand"
+              accessibilityLabel={tr('bd.editAmountA11y')}
               placeholderTextColor="rgba(255,255,255,0.35)"
             />
-            <Text style={styles.modalLabel}>Note</Text>
+            <Text style={styles.modalLabel}>{tr('common.note')}</Text>
             <TextInput
               style={styles.modalInput}
               value={editing ? editing.note : ''}
               onChangeText={(text) => setEditing((prev) => (prev ? { ...prev, note: text } : prev))}
               maxLength={60}
-              accessibilityLabel="Edit note"
+              accessibilityLabel={tr('bd.editNoteA11y')}
               placeholderTextColor="rgba(255,255,255,0.35)"
             />
             {editError ? <Text style={styles.modalError}>{editError}</Text> : null}
@@ -406,15 +412,15 @@ export default function BreakdownScreen() {
                 style={({ pressed }) => [styles.modalCancel, pressed && styles.pressed]}
                 accessibilityRole="button"
               >
-                <Text style={styles.modalCancelText}>Cancel</Text>
+                <Text style={styles.modalCancelText}>{tr('common.cancel')}</Text>
               </Pressable>
               <Pressable
                 onPress={saveEdit}
                 style={({ pressed }) => [styles.modalSave, pressed && styles.pressed]}
                 accessibilityRole="button"
-                accessibilityLabel="Save changes"
+                accessibilityLabel={tr('bd.saveChanges')}
               >
-                <Text style={styles.modalSaveText}>Save</Text>
+                <Text style={styles.modalSaveText}>{tr('common.save')}</Text>
               </Pressable>
             </View>
           </View>

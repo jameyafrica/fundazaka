@@ -21,6 +21,7 @@ export function getHeroState(row, totals) {
       primaryValue: totals.income,
       targetValue: totals.target,
       isOver: false,
+      isCelebrating: false,
       showProgress: false,
       segments: [],
       motivationKind: 'default',
@@ -28,7 +29,7 @@ export function getHeroState(row, totals) {
   }
 
   const { visual } = row;
-  const base = { mode: 'category', targetValue: row.targetAmount, isOver: false };
+  const base = { mode: 'category', targetValue: row.targetAmount, isOver: false, isCelebrating: false };
 
   if (visual.variant === 'savings') {
     // Savings never goes "Over": passing the target is a win, the bar just falls away.
@@ -38,9 +39,10 @@ export function getHeroState(row, totals) {
         primaryLabel: 'Extra saved',
         primaryLabelKey: 'hero.extraSaved',
         primaryValue: row.spentAmount - row.targetAmount,
+        isCelebrating: true,
         showProgress: false,
         segments: [],
-        motivationKind: 'savings',
+        motivationKind: 'savingsOver',
       };
     }
     return {

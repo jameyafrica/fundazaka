@@ -21,6 +21,12 @@ export const MOTIVATION = {
     'Every rand saved is a little safety net.',
     'Saving is the loudest quiet win.',
   ],
+  // Shown when savings pass the target: a bigger, happier moment than the normal savings lines.
+  savingsOver: [
+    'You smashed your target. Future you is so grateful!',
+    'Above and beyond! Your savings are growing.',
+    'That is how it is done. Lekker saving!',
+  ],
 };
 
 // seed is a fixed random number per screen visit, so the line does not flicker.

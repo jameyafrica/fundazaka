@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -7,6 +7,8 @@ import { theme } from '../../constants/theme';
 import { getCourse } from '../../constants/courses';
 import { BADGES } from '../../constants/badges';
 import { useScale } from '../../hooks/useScale';
+import { useT } from '../../i18n/LanguageContext';
+import { localizeCourse } from '../../i18n/localizeContent';
 import {
   getCourseProgress,
   getCurrentStreak,
@@ -23,11 +25,13 @@ export default function CourseScreen() {
   const courseId = Array.isArray(params.courseId) ? params.courseId[0] : params.courseId;
   const { user, learning, completeLesson } = useBudget();
   const scrollRef = useRef(null);
+  const { t, lang } = useT();
 
   const [openLessonId, setOpenLessonId] = useState(null); // null = lesson list
   const [newBadgeIds, setNewBadgeIds] = useState([]);
 
-  const course = getCourse(courseId);
+  const baseCourse = getCourse(courseId);
+  const course = useMemo(() => localizeCourse(baseCourse, lang), [baseCourse, lang]);
 
   if (!user) return <Redirect href="/(auth)/login" />;
   if (!course) return <Redirect href="/learning" />;
@@ -87,11 +91,11 @@ export default function CourseScreen() {
           <View style={[styles.barFill, { width: `${Math.round(progress.fraction * 100)}%` }]} />
         </View>
         <Text style={styles.progressText}>
-          {progress.done} of {progress.total} lessons done
+          {t('ln.lessonsDone', { done: progress.done, total: progress.total })}
         </Text>
       </View>
 
-      <Text style={styles.sectionTitle}>Lessons</Text>
+      <Text style={styles.sectionTitle}>{t('ln.lessons')}</Text>
       {course.lessons.map((l, index) => {
         const done = isLessonDone(learning, course.id, l.id);
         return (
@@ -100,14 +104,14 @@ export default function CourseScreen() {
             onPress={() => openLesson(l.id)}
             style={({ pressed }) => [styles.lessonRow, pressed && styles.pressed]}
             accessibilityRole="button"
-            accessibilityLabel={`Lesson ${index + 1}, ${l.title}, ${getReadMinutes(l)} minute read${done ? ', done' : ''}`}
+            accessibilityLabel={t('ln.lessonA11y', { n: index + 1, title: l.title, minutes: getReadMinutes(l) }) + (done ? t('ln.doneA11y') : '')}
           >
             <View style={[styles.lessonNumber, done && styles.lessonNumberDone]}>
               <Text style={styles.lessonNumberText}>{done ? '\u2713' : index + 1}</Text>
             </View>
             <View style={styles.lessonText}>
               <Text style={styles.lessonTitle}>{l.title}</Text>
-              <Text style={styles.lessonMeta}>{getReadMinutes(l)} min read</Text>
+              <Text style={styles.lessonMeta}>{t('ln.minRead', { count: getReadMinutes(l) })}</Text>
             </View>
             <Text style={styles.chevron}>{'\u203A'}</Text>
           </Pressable>
@@ -118,16 +122,16 @@ export default function CourseScreen() {
         onPress={goQuiz}
         style={({ pressed }) => [styles.quizCard, pressed && styles.pressed]}
         accessibilityRole="button"
-        accessibilityLabel="Take the quiz"
+        accessibilityLabel={t('ln.takeQuiz')}
       >
         <View style={styles.quizText}>
-          <Text style={styles.quizTitle}>Take the quiz</Text>
+          <Text style={styles.quizTitle}>{t('ln.takeQuiz')}</Text>
           <Text style={styles.quizMeta}>
-            {course.quiz.length} questions
-            {quizScore ? ` \u00B7 Best ${quizScore.bestPercent}%` : ''}
+            {t('ln.questionsCount', { count: course.quiz.length })}
+            {quizScore ? ` \u00B7 ${t('ln.bestPercent', { percent: quizScore.bestPercent })}` : ''}
           </Text>
         </View>
-        <Text style={styles.quizGo}>Go</Text>
+        <Text style={styles.quizGo}>{t('ln.go')}</Text>
       </Pressable>
     </>
   );
@@ -135,7 +139,7 @@ export default function CourseScreen() {
   const renderReader = () => (
     <>
       <View style={styles.readTimePill}>
-        <Text style={styles.readTimeText}>{getReadMinutes(lesson)} min read</Text>
+        <Text style={styles.readTimeText}>{t('ln.minRead', { count: getReadMinutes(lesson) })}</Text>
       </View>
       <Text style={[styles.lessonHeading, { fontSize: fs(26) }]}>{lesson.title}</Text>
 
@@ -147,7 +151,7 @@ export default function CourseScreen() {
 
       {lesson.tip ? (
         <View style={styles.tipBox}>
-          <Text style={styles.tipLabel}>Remember</Text>
+          <Text style={styles.tipLabel}>{t('ln.remember')}</Text>
           <Text style={styles.tipText}>{lesson.tip}</Text>
         </View>
       ) : null}
@@ -156,8 +160,8 @@ export default function CourseScreen() {
         <View key={badge.id} style={styles.badgeBanner}>
           <Text style={styles.badgeBannerIcon}>{badge.icon}</Text>
           <View style={styles.badgeBannerText}>
-            <Text style={styles.badgeBannerTitle}>New badge: {badge.title}</Text>
-            <Text style={styles.badgeBannerDesc}>{badge.description}</Text>
+            <Text style={styles.badgeBannerTitle}>{t('ln.newBadge', { title: t(`badge.${badge.id}.title`) })}</Text>
+            <Text style={styles.badgeBannerDesc}>{t(`badge.${badge.id}.desc`)}</Text>
           </View>
         </View>
       ))}
@@ -168,12 +172,12 @@ export default function CourseScreen() {
           style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
           accessibilityRole="button"
         >
-          <Text style={styles.primaryText}>Mark as read</Text>
+          <Text style={styles.primaryText}>{t('ln.markRead')}</Text>
         </Pressable>
       ) : (
         <>
           <Text style={styles.doneText}>
-            Lesson done{getCurrentStreak(learning) > 0 ? ` \u00B7 ${getCurrentStreak(learning)} day streak` : ''}
+            {getCurrentStreak(learning) > 0 ? t('ln.lessonDoneStreak', { count: getCurrentStreak(learning) }) : t('ln.lessonDone')}
           </Text>
           {nextLesson ? (
             <Pressable
@@ -181,7 +185,7 @@ export default function CourseScreen() {
               style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
               accessibilityRole="button"
             >
-              <Text style={styles.primaryText}>Next lesson</Text>
+              <Text style={styles.primaryText}>{t('ln.nextLesson')}</Text>
             </Pressable>
           ) : (
             <Pressable
@@ -189,7 +193,7 @@ export default function CourseScreen() {
               style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
               accessibilityRole="button"
             >
-              <Text style={styles.primaryText}>Take the quiz</Text>
+              <Text style={styles.primaryText}>{t('ln.takeQuiz')}</Text>
             </Pressable>
           )}
         </>
@@ -200,7 +204,7 @@ export default function CourseScreen() {
         style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
         accessibilityRole="button"
       >
-        <Text style={styles.secondaryText}>Back to lessons</Text>
+        <Text style={styles.secondaryText}>{t('ln.backToLessons')}</Text>
       </Pressable>
     </>
   );
@@ -219,7 +223,7 @@ export default function CourseScreen() {
               onPress={goBack}
               hitSlop={12}
               accessibilityRole="button"
-              accessibilityLabel="Back"
+              accessibilityLabel={t('common.backA11y')}
               style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
             >
               <Text style={styles.headerIcon}>{'\u2039'}</Text>

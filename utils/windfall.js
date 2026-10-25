@@ -58,10 +58,17 @@ export function buildWindfallPlan(amount, rows) {
   };
 }
 
-export function describeWindfallPlan(amount, plan) {
+// t: optional translate function (key, params) from useT(). Without it the text is English.
+export function describeWindfallPlan(amount, plan, t) {
+  const say = t || ((key, params) => ({
+    'windfall.toBills': `${params && params.amount} to bills`,
+    'windfall.toSavings': `${params && params.amount} to savings`,
+    'windfall.buffer': `${params && params.amount} buffer`,
+    'windfall.describe': `${params && params.amount} logged. Zak suggests ${params && params.parts}.`,
+  }[key]));
   const parts = [];
-  if (plan.coverFixed > 0) parts.push(`${formatRand(plan.coverFixed)} to bills`);
-  parts.push(`${formatRand(plan.toSavings)} to savings`);
-  parts.push(`${formatRand(plan.buffer)} buffer`);
-  return `${formatRand(amount)} logged. Zak suggests ${parts.join(', ')}.`;
+  if (plan.coverFixed > 0) parts.push(say('windfall.toBills', { amount: formatRand(plan.coverFixed) }));
+  parts.push(say('windfall.toSavings', { amount: formatRand(plan.toSavings) }));
+  parts.push(say('windfall.buffer', { amount: formatRand(plan.buffer) }));
+  return say('windfall.describe', { amount: formatRand(amount), parts: parts.join(', ') });
 }
