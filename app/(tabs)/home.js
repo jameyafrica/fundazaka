@@ -8,7 +8,8 @@ import { useT } from '../../i18n/LanguageContext';
 import { pickMotivation } from '../../constants/motivation';
 import { useScale } from '../../hooks/useScale';
 import { formatRand } from '../../utils/format';
-import { getHeroState, getNextPaymentCard } from '../../utils/dashboard';
+import { getHeroForecast, getHeroState, getNextPaymentCard } from '../../utils/dashboard';
+import { getCycleProgress } from '../../utils/insights';
 import { getNextRoute } from '../../utils/routing';
 import ScreenBackground from '../../components/ScreenBackground';
 import CategoryIcon from '../../components/CategoryIcon';
@@ -29,7 +30,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const scale = useScale();
   const { t, tList } = useT();
-  const { user, displayName, onboardingCompleted, tourCompleted, resetPending, categoryRows, totals, transactions, monthlyReports } = useBudget();
+  const { user, displayName, onboardingCompleted, tourCompleted, resetPending, categoryRows, totals, transactions, monthlyReports, resetDay, cycleStartedAt } = useBudget();
   const [selectedKey, setSelectedKey] = useState(null); // null = "Total" view
   const seed = useRef(Math.floor(Math.random() * 1000)).current;
 
@@ -49,6 +50,24 @@ export default function HomeScreen() {
     over: tList('motivation.over'),
     savings: tList('motivation.savings'),
   });
+  const forecast = getHeroForecast(categoryRows, getCycleProgress(resetDay, cycleStartedAt, new Date()), selectedKey);
+  let forecastText = '';
+  if (forecast) {
+    const name = t(`cat.${forecast.key}.title`);
+    if (forecast.daysUntilOver === null) {
+      forecastText = `At this pace ${name} will pass its target by about ${formatRand(forecast.projectedOver)}.`;
+    } else if (selected) {
+      forecastText =
+        forecast.daysUntilOver === 0
+          ? 'At this pace you will pass the target today.'
+          : `At this pace you will pass the target in ${forecast.daysUntilOver} day${forecast.daysUntilOver === 1 ? '' : 's'}.`;
+    } else {
+      forecastText =
+        forecast.daysUntilOver === 0
+          ? `At this pace ${name} passes its target today.`
+          : `At this pace ${name} passes its target in ${forecast.daysUntilOver} day${forecast.daysUntilOver === 1 ? '' : 's'}.`;
+    }
+  }
   const isSavings = selected && selected.key === 'savings';
   const expenseLabel = isSavings ? t('home.addSavings') : t('home.payExpense');
   const catTitle = (key) => t(`cat.${key}.title`);
@@ -124,6 +143,12 @@ export default function HomeScreen() {
             )}
 
             <Text style={[styles.motivation, { fontSize: fs(12) }]}>{motivation}</Text>
+
+            {forecastText ? (
+              <View style={styles.forecast} accessibilityLiveRegion="polite">
+                <Text style={[styles.forecastText, { fontSize: fs(12) }]}>{forecastText}</Text>
+              </View>
+            ) : null}
 
             {selected && (
               <Pressable
@@ -242,6 +267,16 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.63)',
     fontFamily: 'Nunito-MediumItalic',
   },
+  forecast: {
+    marginTop: theme.spacing.sm,
+    paddingVertical: 6,
+    paddingHorizontal: theme.spacing.sm + 2,
+    borderRadius: theme.radius.control,
+    borderWidth: 1,
+    borderColor: theme.colors.warning,
+    backgroundColor: theme.colors.warningSurface,
+  },
+  forecastText: { color: theme.colors.warning, fontFamily: theme.fonts.bodySemiBold },
   addZaks: {
     flexDirection: 'row',
     alignItems: 'center',

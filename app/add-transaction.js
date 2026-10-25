@@ -17,6 +17,7 @@ import { CATEGORY_META } from '../constants/categories';
 import { useScale } from '../hooks/useScale';
 import { formatRand } from '../utils/format';
 import { addMoney, parseMoney, subtractMoney } from '../utils/money';
+import { buildWindfallPlan, describeWindfallPlan, isWindfall } from '../utils/windfall';
 import ScreenBackground from '../components/ScreenBackground';
 import CategoryIcon from '../components/CategoryIcon';
 
@@ -31,7 +32,7 @@ export default function AddTransactionScreen() {
   const router = useRouter();
   const scale = useScale();
   const params = useLocalSearchParams();
-  const { user, categoryRows, logIncome, payExpense } = useBudget();
+  const { user, categoryRows, logIncome, payExpense, transactions, monthlyReports } = useBudget();
 
   const [mode, setMode] = useState(params.type === 'income' ? 'income' : 'expense');
   const [amountText, setAmountText] = useState('');
@@ -43,6 +44,8 @@ export default function AddTransactionScreen() {
     return categoryRows.length ? categoryRows[0].key : null;
   });
   const [error, setError] = useState('');
+  // Set after logging a payment that is well above the usual size: { amount, plan, hasSavings }.
+  const [windfall, setWindfall] = useState(null);
 
   // Strict parsing (utils/money.js): "1500", "1 500", "1500,50" and "R1500.50" are fine;
   // "1e308", "12e3", "0x10" and amounts above R9 999 999.99 are rejected with a clear message.
@@ -81,10 +84,32 @@ export default function AddTransactionScreen() {
 
   const onSave = () => {
     setError('');
+    // Checked before saving, so the new payment is not compared with itself.
+    const bigPayment = isIncome && isWindfall(amount, monthlyReports || [], transactions || []);
     const result = isIncome
       ? logIncome({ amount, source, note: note.trim() })
       : payExpense({ amount, categoryKey, note: note.trim() });
 
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    if (bigPayment) {
+      setWindfall({
+        amount,
+        plan: buildWindfallPlan(amount, categoryRows),
+        hasSavings: categoryRows.some((row) => row.key === 'savings'),
+      });
+      return;
+    }
+    if (router.canGoBack()) router.back();
+    else router.replace('/(tabs)/home');
+  };
+
+  // One tap: puts Zak's suggested share into the Savings category.
+  const onAddWindfallSavings = () => {
+    if (!windfall) return;
+    const result = payExpense({ amount: windfall.plan.toSavings, categoryKey: 'savings', note: 'Windfall' });
     if (!result.ok) {
       setError(result.error);
       return;
@@ -97,6 +122,45 @@ export default function AddTransactionScreen() {
     if (router.canGoBack()) router.back();
     else router.replace('/(tabs)/home');
   };
+
+  if (windfall) {
+    const canSave = windfall.hasSavings && windfall.plan.toSavings > 0;
+    return (
+      <View style={styles.container}>
+        <ScreenBackground />
+        <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+          <View style={styles.windfallWrap}>
+            <Text style={styles.windfallTitle}>Nice one!</Text>
+            <View style={styles.windfallCard}>
+              <Text style={styles.windfallText}>{describeWindfallPlan(windfall.amount, windfall.plan)}</Text>
+              {!windfall.hasSavings && (
+                <Text style={styles.windfallHint}>Add Savings as one of your expenses to put money aside in one tap.</Text>
+              )}
+            </View>
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            {canSave && (
+              <Pressable
+                onPress={onAddWindfallSavings}
+                style={({ pressed }) => [styles.saveButton, pressed && styles.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Add to savings"
+              >
+                <Text style={styles.saveText}>{`Add ${formatRand(windfall.plan.toSavings)} to savings`}</Text>
+              </Pressable>
+            )}
+            <Pressable
+              onPress={close}
+              style={({ pressed }) => [styles.windfallSkip, pressed && styles.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Done"
+            >
+              <Text style={styles.windfallSkipText}>{canSave ? 'Not now' : 'Done'}</Text>
+            </Pressable>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -383,6 +447,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 14,
   },
+
+  windfallWrap: { flex: 1, justifyContent: 'center', paddingHorizontal: 20 },
+  windfallTitle: { color: theme.colors.text, fontFamily: theme.fonts.bodyBold, fontSize: 28, textAlign: 'center' },
+  windfallCard: {
+    marginTop: 20,
+    padding: 18,
+    borderRadius: theme.radius.card,
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.surfaceBorder,
+    borderWidth: 1,
+  },
+  windfallText: { color: theme.colors.text, fontFamily: theme.fonts.bodySemiBold, fontSize: 17, lineHeight: 24 },
+  windfallHint: { marginTop: 10, color: theme.colors.textMuted, fontFamily: theme.fonts.bodyLight, fontSize: 14 },
+  windfallSkip: { marginTop: 14, paddingVertical: 14, alignItems: 'center' },
+  windfallSkipText: { color: theme.colors.textMuted, fontFamily: theme.fonts.bodySemiBold, fontSize: 16 },
 
   saveButton: {
     marginTop: 26,
