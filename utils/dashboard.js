@@ -1,6 +1,6 @@
 // Pure logic for the dashboard hero card. No React, easy to test.
 import { PROGRESS_BANDS } from './budgetMath.js';
-import { MIN_PAYDAYS_FOR_RHYTHM, formatShortDate, predictNextIncome } from './insights.js';
+import { MIN_PAYDAYS_FOR_RHYTHM, forecastAll, formatShortDate, predictNextIncome } from './insights.js';
 
 // Five segments, one per 20% band. A segment is filled once progress passes its start.
 export function getSegments(ratio) {
@@ -90,4 +90,16 @@ export function getNextPaymentCard(monthlyReports, transactions, now = new Date(
   if (next.status === 'overdue') return { kind: 'overdue', ...shared };
   if (next.expectedInDays === 0) return { kind: 'today', ...shared };
   return { kind: 'upcoming', date: formatShortDate(next.expectedDate), days: next.expectedInDays, ...shared };
+}
+
+// One-line pace warning for the hero card, from the same forecast Zak uses.
+// rows = categoryRows, progress = getCycleProgress(...), selectedKey = pill that is on (null = Total view).
+// Returns null unless a category is on pace to pass its target (a category already over has its own state).
+// { key, daysUntilOver (number or null), projectedOver (whole Rand) }
+export function getHeroForecast(rows, progress, selectedKey = null) {
+  const list = selectedKey ? (rows || []).filter((r) => r.key === selectedKey) : rows || [];
+  const heading = forecastAll(list, progress).filter((f) => f.status === 'heading-over');
+  if (heading.length === 0) return null;
+  const worst = heading.sort((a, b) => b.projectedOver - a.projectedOver)[0];
+  return { key: worst.key, daysUntilOver: worst.daysUntilOver, projectedOver: Math.round(worst.projectedOver) };
 }

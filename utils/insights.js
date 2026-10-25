@@ -14,6 +14,7 @@ import { formatRand } from './format.js';
 import { getCurrentStreak } from './learning.js';
 import { SAVINGS_KEY } from './budgetMath.js';
 import { CATEGORY_META } from '../constants/categories.js';
+import { WEEKDAY_NAMES, describePattern, getWeekdayPatterns } from './weekday.js';
 
 const DAY_MS = 86400000;
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -551,6 +552,17 @@ export function answerQuestion(question, ctx, now = new Date()) {
     return reply('forecast', `Here is where your month is heading (${progress.daysLeft} days to the reset):\n${lines}`);
   }
 
+  // 4b. Weekday pattern: "Which day do I spend most?"
+  if (has(/\b(which day|what day|weekday|weekdays|day of the week|fridays?|mondays?|tuesdays?|wednesdays?|thursdays?|saturdays?|sundays?)\b/)) {
+    const patterns = getWeekdayPatterns(ctx.transactions, ctx.monthlyReports);
+    const named = WEEKDAY_NAMES.find((d) => has(new RegExp(`\\b${d.slice(0, -1).toLowerCase()}s?\\b`)));
+    const shown = category ? patterns.filter((p) => p.key === category) : patterns;
+    if (shown.length === 0) {
+      return reply('weekday', `I do not see a clear day yet. I need at least a few entries in a category, with 40% or more of the spending on one weekday.${named ? ` Keep logging and ask me again about ${named}.` : ''}`);
+    }
+    return reply('weekday', shown.slice(0, 3).map(describePattern).join('\n'), { label: 'See breakdown', route: '/breakdown' });
+  }
+
   // 5. Overspending / where is the money going
   if (has(/\b(over|overspend|overspent|overbudget)\b/) || has(/too much|biggest|where.*(money|going)|spending/)) {
     const forecasts = forecastAll(rows, progress);
@@ -629,7 +641,7 @@ export function answerQuestion(question, ctx, now = new Date()) {
 
   // 12. Help / greeting
   if (has(/\b(help|hello|hi|hey|howzit|sawubona|molo|what can you)\b/)) {
-    return reply('help', 'Howzit! I can tell you what is safe to spend today, forecast your month, predict when your next payment will land, check if you can afford something, read your income pattern, suggest how to split a windfall, and explain how to spot scams.');
+    return reply('help', 'Howzit! I can tell you what is safe to spend today, forecast your month, predict when your next payment will land, check if you can afford something, read your income pattern, spot which weekday you spend most on, suggest how to split a windfall, and explain how to spot scams.');
   }
 
   return reply('fallback', 'I did not catch that. Try: "Can I afford R300?", "Will I go over budget?", "How is my income?" or "How do I spot a scam?"');

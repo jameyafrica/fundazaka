@@ -5,6 +5,7 @@ import { Redirect } from 'expo-router';
 import { useBudget } from '../context/BudgetContext';
 import { useT } from '../i18n/LanguageContext';
 import { getNextRoute } from '../utils/routing';
+import { hasSeenSplash, markSplashSeen } from '../lib/splashSeen';
 
 const SPLASH_DURATION = 3000;
 const BACKGROUND_BLUR = 17; // if the background looks blurrier than the mockup, try 8 (or 0 if the image is already blurred)
@@ -20,6 +21,20 @@ export default function LaunchScreen() {
   const { width, height } = useWindowDimensions();
   const [phase, setPhase] = useState('opening');
   const [greeting, setGreeting] = useState('');
+  // null while we check whether the splash screens were already shown on an earlier launch.
+  const [splashSeen, setSplashSeen] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    hasSeenSplash().then((seen) => {
+      if (cancelled) return;
+      setSplashSeen(seen);
+      if (seen) setPhase('routing');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // sx scales widths and font sizes, sy scales vertical positions.
   const sx = Math.min(Math.max(width / DESIGN_W, 0.85), 1.2);
@@ -36,11 +51,15 @@ export default function LaunchScreen() {
   // Wait until saved data has loaded, so each splash screen always gets its full 3 seconds.
   useEffect(() => {
     if (!hydrated) return;
+    if (splashSeen === null) return;
     if (phase === 'opening' || phase === 'welcome') {
-      const timer = setTimeout(() => setPhase(phase === 'opening' ? 'welcome' : 'routing'), SPLASH_DURATION);
+      const timer = setTimeout(() => {
+        if (phase === 'welcome') markSplashSeen();
+        setPhase(phase === 'opening' ? 'welcome' : 'routing');
+      }, SPLASH_DURATION);
       return () => clearTimeout(timer);
     }
-  }, [phase, hydrated]);
+  }, [phase, hydrated, splashSeen]);
 
   // Dev only: shows in the Metro terminal so we can see where the launch flow is.
   useEffect(() => {
@@ -49,7 +68,7 @@ export default function LaunchScreen() {
     }
   }, [phase, hydrated, user, onboardingCompleted, tourCompleted, resetPending]);
 
-  if (!hydrated) return <View style={styles.container} />;
+  if (!hydrated || splashSeen === null) return <View style={styles.container} />;
 
   if (phase === 'routing') {
     return <Redirect href={getNextRoute({ user, onboardingCompleted, tourCompleted, resetPending })} />;

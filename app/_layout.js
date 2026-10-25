@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
@@ -8,6 +8,8 @@ import { LanguageProvider } from '../i18n/LanguageContext';
 import { checkSupabaseConnection } from '../lib/supabase';
 import { theme } from '../constants/theme';
 import AppLockGate from '../components/AppLockGate';
+import ErrorBoundary from '../components/ErrorBoundary';
+import UndoSnackbar from '../components/UndoSnackbar';
 
 // Keep the splash screen visible while we fetch fonts
 SplashScreen.preventAutoHideAsync();
@@ -40,12 +42,15 @@ function RootNavigation() {
 
   return (
     <AppLockGate>
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: theme.colors.background },
-        }}
-      />
+      <ErrorBoundary onGoHome={() => router.replace('/(tabs)/home')}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: theme.colors.background },
+          }}
+        />
+        <UndoSnackbar />
+      </ErrorBoundary>
     </AppLockGate>
   );
 }

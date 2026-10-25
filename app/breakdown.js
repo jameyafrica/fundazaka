@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect, useRouter } from 'expo-router';
 import { useBudget } from '../context/BudgetContext';
@@ -15,6 +15,7 @@ import {
   share,
   summarise,
 } from '../utils/breakdown';
+import { describePattern, getWeekdayPatterns } from '../utils/weekday';
 import ScreenBackground from '../components/ScreenBackground';
 import NavBar from '../components/NavBar';
 
@@ -49,10 +50,11 @@ function StatCard({ label, value, tone, fs }) {
   );
 }
 
-function TransactionRow({ t, isLast }) {
+function TransactionRow({ t, isLast, onEdit, onDelete }) {
   const isIncome = t.type === 'income';
   const title = isIncome ? SOURCE_LABELS[t.source] || 'Income' : categoryTitle(t.categoryKey);
   const subtitle = [formatShortDate(t.createdAt), t.note].filter(Boolean).join(' \u00B7 ');
+  const amountText = `${isIncome ? '+' : '\u2212'}${formatRand(t.amount)}`;
   return (
     <View style={[styles.txRow, !isLast && styles.rowBorder]}>
       <View style={styles.txText}>
@@ -65,10 +67,29 @@ function TransactionRow({ t, isLast }) {
           </Text>
         ) : null}
       </View>
-      <Text style={[styles.txAmount, isIncome && styles.txIncome]}>
-        {isIncome ? '+' : '\u2212'}
-        {formatRand(t.amount)}
-      </Text>
+      <Text style={[styles.txAmount, isIncome && styles.txIncome]}>{amountText}</Text>
+      {onEdit && (
+        <Pressable
+          onPress={() => onEdit(t)}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={`Edit ${title} ${formatRand(t.amount)}`}
+          style={({ pressed }) => [styles.txAction, pressed && styles.pressed]}
+        >
+          <Text style={styles.txActionText}>Edit</Text>
+        </Pressable>
+      )}
+      {onDelete && (
+        <Pressable
+          onPress={() => onDelete(t)}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={`Delete ${title} ${formatRand(t.amount)}`}
+          style={({ pressed }) => [styles.txAction, styles.txActionDelete, pressed && styles.pressed]}
+        >
+          <Text style={[styles.txActionText, styles.textWarning]}>Delete</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -76,11 +97,13 @@ function TransactionRow({ t, isLast }) {
 export default function BreakdownScreen() {
   const router = useRouter();
   const scale = useScale();
-  const { user, categories, transactions, monthlyReports, cycleStartedAt } = useBudget();
+  const { user, categories, transactions, monthlyReports, cycleStartedAt, removeTransaction, updateTransaction } = useBudget();
 
   const [monthMode, setMonthMode] = useState('current'); // 'current' | 'previous'
   const [tab, setTab] = useState('all');
   const [reportId, setReportId] = useState(null);
+  const [editing, setEditing] = useState(null); // { id, amountText, note, title }
+  const [editError, setEditError] = useState('');
 
   const reports = monthlyReports || [];
   const isCurrent = monthMode === 'current';
@@ -104,6 +127,7 @@ export default function BreakdownScreen() {
     [period]
   );
   const list = useMemo(() => (period ? filterTransactions(period.transactions, tab) : []), [period, tab]);
+  const patterns = useMemo(() => getWeekdayPatterns(transactions, reports), [transactions, reports]);
 
   if (!user) return <Redirect href="/(auth)/login" />;
 
@@ -112,6 +136,26 @@ export default function BreakdownScreen() {
   const close = () => {
     if (router.canGoBack()) router.back();
     else router.replace('/(tabs)/home');
+  };
+
+  // Only this cycle can be corrected. Archived months are history and stay as they were.
+  const startEdit = (t) => {
+    setEditError('');
+    setEditing({
+      id: t.id,
+      amountText: String(t.amount),
+      note: t.note || '',
+      title: t.type === 'income' ? SOURCE_LABELS[t.source] || 'Income' : categoryTitle(t.categoryKey),
+    });
+  };
+  const saveEdit = () => {
+    if (!editing) return;
+    const result = updateTransaction(editing.id, { amount: editing.amountText, note: editing.note });
+    if (!result.ok) {
+      setEditError(result.error);
+      return;
+    }
+    setEditing(null);
   };
 
   const incomeRows = summary
@@ -205,6 +249,21 @@ export default function BreakdownScreen() {
             m === 'current' ? 'Current Month' : 'Previous Months'
           )}
 
+          {reports.length > 0 && (
+            <Pressable
+              onPress={() => router.push('/income-proof')}
+              style={({ pressed }) => [styles.proofCard, pressed && styles.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Proof of income"
+            >
+              <View style={styles.proofText}>
+                <Text style={styles.proofTitle}>Proof of income</Text>
+                <Text style={styles.proofSub}>Average, lowest and highest month. Share it when you apply for credit.</Text>
+              </View>
+              <Text style={styles.proofChevron}>{'\u203A'}</Text>
+            </Pressable>
+          )}
+
           {!isCurrent && reports.length > 0 && (
             <ScrollView
               horizontal
@@ -280,13 +339,30 @@ export default function BreakdownScreen() {
                 </>
               )}
 
+              {tab === 'expenses' && patterns.length > 0 && (
+                <View style={styles.card}>
+                  <Text style={styles.cardTitle}>Spending pattern</Text>
+                  {patterns.slice(0, 2).map((p) => (
+                    <Text key={p.key} style={styles.patternText}>
+                      {describePattern(p)}
+                    </Text>
+                  ))}
+                </View>
+              )}
+
               <View style={styles.card}>
                 <Text style={styles.cardTitle}>Transactions ({list.length})</Text>
                 {list.length === 0 ? (
                   <Text style={styles.emptyText}>Nothing logged here yet.</Text>
                 ) : (
                   list.map((t, index) => (
-                    <TransactionRow key={t.id} t={t} isLast={index === list.length - 1} />
+                    <TransactionRow
+                      key={t.id}
+                      t={t}
+                      isLast={index === list.length - 1}
+                      onEdit={isCurrent ? startEdit : undefined}
+                      onDelete={isCurrent ? (item) => removeTransaction(item.id) : undefined}
+                    />
                   ))
                 )}
               </View>
@@ -295,6 +371,55 @@ export default function BreakdownScreen() {
         </ScrollView>
       </SafeAreaView>
       <NavBar />
+
+      <Modal visible={Boolean(editing)} transparent animationType="fade" onRequestClose={() => setEditing(null)}>
+        <KeyboardAvoidingView style={styles.modalBackdrop} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Edit {editing ? editing.title : ''}</Text>
+            <Text style={styles.modalLabel}>Amount</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={editing ? editing.amountText : ''}
+              onChangeText={(text) => {
+                setEditError('');
+                setEditing((prev) => (prev ? { ...prev, amountText: text } : prev));
+              }}
+              keyboardType="decimal-pad"
+              maxLength={12}
+              autoFocus
+              accessibilityLabel="Edit amount in rand"
+              placeholderTextColor="rgba(255,255,255,0.35)"
+            />
+            <Text style={styles.modalLabel}>Note</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={editing ? editing.note : ''}
+              onChangeText={(text) => setEditing((prev) => (prev ? { ...prev, note: text } : prev))}
+              maxLength={60}
+              accessibilityLabel="Edit note"
+              placeholderTextColor="rgba(255,255,255,0.35)"
+            />
+            {editError ? <Text style={styles.modalError}>{editError}</Text> : null}
+            <View style={styles.modalButtons}>
+              <Pressable
+                onPress={() => setEditing(null)}
+                style={({ pressed }) => [styles.modalCancel, pressed && styles.pressed]}
+                accessibilityRole="button"
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={saveEdit}
+                style={({ pressed }) => [styles.modalSave, pressed && styles.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Save changes"
+              >
+                <Text style={styles.modalSaveText}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -406,4 +531,51 @@ const styles = StyleSheet.create({
   txSubtitle: { color: theme.colors.textMuted, fontFamily: theme.fonts.bodyLight, fontSize: 13, marginTop: 2 },
   txAmount: { color: theme.colors.text, fontFamily: theme.fonts.bodyBold, fontSize: 15 },
   txIncome: { color: theme.colors.accent },
+  txAction: { marginLeft: 10, paddingVertical: 4, paddingHorizontal: 8, borderRadius: theme.radius.pill, borderWidth: 1, borderColor: theme.colors.surfaceBorder },
+  txActionDelete: { borderColor: theme.colors.warning },
+  txActionText: { color: theme.colors.textMuted, fontFamily: theme.fonts.bodySemiBold, fontSize: 12 },
+  patternText: { color: theme.colors.text, fontFamily: theme.fonts.bodySemiBold, fontSize: 15, marginBottom: 6 },
+
+  proofCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 14,
+    padding: 14,
+    borderRadius: theme.radius.card,
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.surfaceBorder,
+    borderWidth: 1,
+  },
+  proofText: { flex: 1 },
+  proofTitle: { color: theme.colors.text, fontFamily: theme.fonts.bodyBold, fontSize: 16 },
+  proofSub: { marginTop: 2, color: theme.colors.textMuted, fontFamily: theme.fonts.bodyLight, fontSize: 13 },
+  proofChevron: { color: theme.colors.accent, fontFamily: theme.fonts.bodyBold, fontSize: 28, marginLeft: 8 },
+
+  modalBackdrop: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: 'rgba(0, 0, 0, 0.6)' },
+  modalCard: {
+    padding: 20,
+    borderRadius: theme.radius.card,
+    backgroundColor: '#0A3638',
+    borderColor: theme.colors.surfaceBorder,
+    borderWidth: 1,
+  },
+  modalTitle: { color: theme.colors.text, fontFamily: theme.fonts.bodyBold, fontSize: 20 },
+  modalLabel: { marginTop: 16, marginBottom: 6, color: theme.colors.textMuted, fontFamily: theme.fonts.bodySemiBold, fontSize: 14 },
+  modalInput: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: theme.radius.control,
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.surfaceBorder,
+    borderWidth: 1,
+    color: theme.colors.text,
+    fontFamily: theme.fonts.bodySemiBold,
+    fontSize: 16,
+  },
+  modalError: { marginTop: 12, color: theme.colors.warning, fontFamily: theme.fonts.bodySemiBold, fontSize: 14 },
+  modalButtons: { flexDirection: 'row', marginTop: 20, gap: 10 },
+  modalCancel: { flex: 1, paddingVertical: 14, borderRadius: theme.radius.pill, borderWidth: 1, borderColor: theme.colors.surfaceBorder, alignItems: 'center' },
+  modalCancelText: { color: theme.colors.text, fontFamily: theme.fonts.bodySemiBold, fontSize: 16 },
+  modalSave: { flex: 1, paddingVertical: 14, borderRadius: theme.radius.pill, backgroundColor: theme.colors.accent, alignItems: 'center' },
+  modalSaveText: { color: theme.colors.text, fontFamily: theme.fonts.bodyBold, fontSize: 16 },
 });

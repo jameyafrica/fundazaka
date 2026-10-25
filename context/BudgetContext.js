@@ -8,6 +8,7 @@ import {
   submitQuiz as applySubmitQuiz,
 } from '../utils/learning';
 import { getCategoryVisual } from '../utils/budgetMath';
+import { editTransactionById, removeTransactionById, restoreTransaction } from '../utils/transactions';
 import { cleanText, coerceAmount } from '../utils/money';
 import { checkEmail, checkNewPassword, friendlyAuthError } from '../utils/validation';
 import { hasAccountData, ownsLocalData } from '../lib/session';
@@ -83,6 +84,12 @@ function withSession(prev, user, fallbackName) {
  
 export function BudgetProvider({ children }) {
   const [state, setState] = useState(initialState);
+  // Latest state for actions that must answer immediately (remove, undo). Not saved to storage.
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  // The last change the person can undo: { kind: 'added' | 'removed' | 'edited', transaction, index?, before?, stamp }.
+  // Lives outside the saved state, so an old undo can never come back after the app restarts.
+  const [undoEntry, setUndoEntry] = useState(null);
   // Controls saving while "Delete my data" runs: 'open' saves normally, 'blocked' saves nothing,
   // 'skip' ignores the one save caused by the reset itself, so nothing is written back after a delete.
   const saveGate = useRef('open');
@@ -287,14 +294,17 @@ export function BudgetProvider({ children }) {
     if (!INCOME_SOURCES.includes(source)) {
       return { ok: false, error: 'Please choose Work, Gift or Other.' };
     }
-    setState((prev) => ({
-      ...prev,
-      transactions: [
-        ...prev.transactions,
-        { id: makeId(), type: 'income', source, amount: value, note: cleanText(note), createdAt: new Date().toISOString() },
-      ],
-    }));
-    return { ok: true };
+    const transaction = {
+      id: makeId(),
+      type: 'income',
+      source,
+      amount: value,
+      note: cleanText(note),
+      createdAt: new Date().toISOString(),
+    };
+    setState((prev) => ({ ...prev, transactions: [...prev.transactions, transaction] }));
+    setUndoEntry({ kind: 'added', transaction, stamp: Date.now() });
+    return { ok: true, id: transaction.id };
   }, []);
  
   // Pay an expense (or add savings) against one of the user's chosen categories.
@@ -306,23 +316,71 @@ export function BudgetProvider({ children }) {
       if (!state.categories.some((c) => c.key === categoryKey)) {
         return { ok: false, error: 'Please choose one of your expenses.' };
       }
-      setState((prev) => ({
-        ...prev,
-        transactions: [
-          ...prev.transactions,
-          { id: makeId(), type: 'expense', categoryKey, amount: value, note: cleanText(note), createdAt: new Date().toISOString() },
-        ],
-      }));
-      return { ok: true };
+      const transaction = {
+        id: makeId(),
+        type: 'expense',
+        categoryKey,
+        amount: value,
+        note: cleanText(note),
+        createdAt: new Date().toISOString(),
+      };
+      setState((prev) => ({ ...prev, transactions: [...prev.transactions, transaction] }));
+      setUndoEntry({ kind: 'added', transaction, stamp: Date.now() });
+      return { ok: true, id: transaction.id };
     },
     [state.categories]
   );
+
+  // Deletes one entry from THIS cycle (archived months are history and stay as they are).
+  // The person can undo it right away. Returns { ok, transaction } or { ok: false, error }.
+  const removeTransaction = useCallback((id) => {
+    const found = removeTransactionById(stateRef.current.transactions, id);
+    if (!found.removed) return { ok: false, error: 'That entry no longer exists.' };
+    setState((prev) => ({ ...prev, transactions: removeTransactionById(prev.transactions, id).list }));
+    setUndoEntry({ kind: 'removed', transaction: found.removed, index: found.index, stamp: Date.now() });
+    return { ok: true, transaction: found.removed };
+  }, []);
+
+  // Fixes the amount and/or note of an entry from this cycle, e.g. a mistyped R15000. Undoable.
+  const updateTransaction = useCallback((id, changes) => {
+    const result = editTransactionById(stateRef.current.transactions, id, changes);
+    if (!result.ok) return result;
+    setState((prev) => {
+      const applied = editTransactionById(prev.transactions, id, changes);
+      return applied.ok ? { ...prev, transactions: applied.list } : prev;
+    });
+    setUndoEntry({ kind: 'edited', transaction: result.after, before: result.before, stamp: Date.now() });
+    return { ok: true, transaction: result.after };
+  }, []);
+
+  // Reverses the last add, delete or edit. Returns { ok, kind } or { ok: false }.
+  const undoLast = useCallback(() => {
+    const entry = undoEntry;
+    if (!entry) return { ok: false };
+    setUndoEntry(null);
+    setState((prev) => {
+      if (entry.kind === 'added') {
+        return { ...prev, transactions: removeTransactionById(prev.transactions, entry.transaction.id).list };
+      }
+      if (entry.kind === 'removed') {
+        return { ...prev, transactions: restoreTransaction(prev.transactions, entry.transaction, entry.index) };
+      }
+      return {
+        ...prev,
+        transactions: prev.transactions.map((t) => (t.id === entry.transaction.id ? entry.before : t)),
+      };
+    });
+    return { ok: true, kind: entry.kind };
+  }, [undoEntry]);
+
+  const dismissUndo = useCallback(() => setUndoEntry(null), []);
  
   // Monthly reset: archive this cycle, clear spending, apply the reviewed targets.
   const runReset = useCallback(
     (newCategories, newResetDay) => {
       const result = validateSetup(newCategories, newResetDay);
       if (!result.ok) return result;
+      setUndoEntry(null);
       setState((prev) => ({ ...prev, ...applyReset(prev, result.categories, newResetDay, new Date()) }));
       return { ok: true };
     },
@@ -388,11 +446,16 @@ export function BudgetProvider({ children }) {
       completeTour,
       logIncome,
       payExpense,
+      removeTransaction,
+      updateTransaction,
+      undoEntry,
+      undoLast,
+      dismissUndo,
       runReset,
       completeLesson,
       submitQuiz,
     }),
-    [state, derived, updateState, startGuest, signUp, signIn, signOut, deleteLocalData, setAppLockEnabled, setDisplayName, saveSetup, completeTour, logIncome, payExpense, runReset, completeLesson, submitQuiz]
+    [state, derived, updateState, startGuest, signUp, signIn, signOut, deleteLocalData, setAppLockEnabled, setDisplayName, saveSetup, completeTour, logIncome, payExpense, removeTransaction, updateTransaction, undoEntry, undoLast, dismissUndo, runReset, completeLesson, submitQuiz]
   );
  
   return <BudgetContext.Provider value={value}>{children}</BudgetContext.Provider>;

@@ -18,6 +18,9 @@ import { useT } from '../../i18n/LanguageContext';
 import { useScale } from '../../hooks/useScale';
 import { CATEGORY_KEYS, MAX_CATEGORIES, MIN_CATEGORIES, validateSetup } from '../../utils/budgetActions';
 import { getNextRoute } from '../../utils/routing';
+import { getIncomeStability } from '../../utils/insights';
+import { suggestTargets } from '../../utils/targetSuggestion';
+import { formatRand } from '../../utils/format';
 
 import IconRent from '../../components/icons/OnboardingExpensesIconRent';
 import IconTransport from '../../components/icons/OnboardingExpensesIconTransport';
@@ -61,6 +64,7 @@ export default function OnboardingExpensesScreen() {
     resetPending,
     saveSetup,
     runReset,
+    monthlyReports,
   } = useBudget();
 
   // ?mode=reset: the monthly target review. Straight to the targets, prefilled.
@@ -85,6 +89,28 @@ export default function OnboardingExpensesScreen() {
   const orderedKeys = CATEGORY_KEYS.filter((k) => selected.includes(k));
   const buildCategories = () =>
     orderedKeys.map((k) => ({ key: k, targetAmount: targets[k] ?? '' }));
+
+  // Monthly review only: if the targets add up to more than a cautious month of income,
+  // Zak offers smaller targets that fit. The person can still edit every number afterwards.
+  let suggestion = null;
+  if (isReset) {
+    const typed = orderedKeys.map((k) => ({ key: k, targetAmount: Number(targets[k]) || 0 }));
+    const typedTotal = typed.reduce((sum, c) => sum + c.targetAmount, 0);
+    const stability = getIncomeStability(monthlyReports || [], typedTotal);
+    if (stability.level !== 'unknown' && !stability.targetsFit) {
+      const result = suggestTargets(typed, stability.planningIncome);
+      if (result.changed) suggestion = { ...result, typedTotal };
+    }
+  }
+
+  const applySuggestion = () => {
+    if (!suggestion) return;
+    setTargets((prev) => ({
+      ...prev,
+      ...Object.fromEntries(suggestion.categories.map((c) => [c.key, String(c.targetAmount)])),
+    }));
+    setError('');
+  };
 
   const finish = () => {
     setError('');
@@ -204,8 +230,27 @@ export default function OnboardingExpensesScreen() {
 
   // Two rows per card: the icon and full-width name on top, then the target amount underneath,
   // so long names such as "Debit Orders" never get squeezed onto several lines.
-  const renderTargets = () =>
-    orderedKeys.map((key) => {
+  const renderSuggestion = () =>
+    suggestion ? (
+      <View key="suggestion" style={styles.suggestCard}>
+        <Text style={styles.suggestTitle}>Zak's suggestion</Text>
+        <Text style={styles.suggestText}>
+          {`A cautious month for you is about ${formatRand(suggestion.planningIncome)}, but your targets add up to ${formatRand(suggestion.typedTotal)}. Smaller targets would total ${formatRand(suggestion.total)}.`}
+        </Text>
+        <Pressable
+          onPress={applySuggestion}
+          accessibilityRole="button"
+          accessibilityLabel="Use Zak's suggestion"
+          style={({ pressed }) => [styles.suggestButton, pressed && { opacity: 0.7 }]}
+        >
+          <Text style={styles.suggestButtonText}>Use Zak's suggestion</Text>
+        </Pressable>
+      </View>
+    ) : null;
+
+  const renderTargets = () => [
+    renderSuggestion(),
+    ...orderedKeys.map((key) => {
       const Icon = ICONS[key];
       return (
         <View key={key} style={styles.targetCard}>
@@ -235,7 +280,8 @@ export default function OnboardingExpensesScreen() {
           </View>
         </View>
       );
-    });
+    }),
+  ];
 
   const renderDays = () => (
     <>
@@ -349,6 +395,25 @@ export default function OnboardingExpensesScreen() {
 }
 
 const styles = StyleSheet.create({
+  suggestCard: {
+    marginBottom: 14,
+    padding: 16,
+    borderRadius: theme.radius.card,
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.accent,
+    borderWidth: 1,
+  },
+  suggestTitle: { color: theme.colors.text, fontFamily: theme.fonts.bodyBold, fontSize: 16 },
+  suggestText: { marginTop: 6, color: theme.colors.textMuted, fontFamily: theme.fonts.bodyLight, fontSize: 14, lineHeight: 20 },
+  suggestButton: {
+    marginTop: 12,
+    alignSelf: 'flex-start',
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.colors.accent,
+  },
+  suggestButtonText: { color: theme.colors.text, fontFamily: theme.fonts.bodyBold, fontSize: 14 },
   container: { flex: 1, backgroundColor: theme.colors.background },
   safeArea: { flex: 1 },
   flex: { flex: 1 },
