@@ -181,6 +181,198 @@ export function getIncomePattern(reports, transactions, totals) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Income rhythm and stability: the irregular-income brain.
+// Still plain rules and statistics on the user's own history (no network, no ML),
+// but it learns each person's pay pattern instead of assuming a salary date.
+// ---------------------------------------------------------------------------
+
+// Pay days needed before a rhythm means anything (3 pay days = 2 gaps).
+export const MIN_PAYDAYS_FOR_RHYTHM = 3;
+// Finished months needed before income stability means anything.
+export const MIN_MONTHS_FOR_STABILITY = 2;
+// Month-to-month swing (std deviation / average): at or below STEADY_CV is steady, at or below VARIABLE_CV is variable.
+export const STEADY_CV = 0.15;
+export const VARIABLE_CV = 0.35;
+// Only the most recent pay days set the "typical payment" size.
+const RECENT_PAYDAYS = 6;
+
+const median = (sorted) => {
+  const n = sorted.length;
+  if (n === 0) return 0;
+  const mid = Math.floor(n / 2);
+  return n % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+};
+
+// Linear-interpolated percentile of an ascending list (p from 0 to 1).
+const percentile = (sorted, p) => {
+  if (sorted.length === 0) return 0;
+  const index = (sorted.length - 1) * p;
+  const lo = Math.floor(index);
+  const hi = Math.ceil(index);
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (index - lo);
+};
+
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+// Every day money arrived, oldest first: [{ date, amount }]. Several payments on one day count as
+// one pay day. Work income sets the rhythm; gifts and one-offs only count when there is too little work income.
+export function getPaydays(reports, transactions) {
+  const events = [];
+  const collect = (list) =>
+    (list || []).forEach((t) => {
+      if (!t || t.type !== 'income') return;
+      const date = new Date(t.createdAt);
+      const amount = Number(t.amount);
+      if (Number.isNaN(date.getTime()) || !(amount > 0)) return;
+      events.push({ date, amount, source: t.source });
+    });
+  collect(transactions);
+  (reports || []).forEach((r) => collect(r && r.transactions));
+
+  const collapse = (list) => {
+    const byDay = new Map();
+    list.forEach((e) => {
+      const key = startOfDay(e.date).getTime();
+      const current = byDay.get(key);
+      byDay.set(key, { date: new Date(key), amount: (current ? current.amount : 0) + e.amount });
+    });
+    return [...byDay.values()].sort((a, b) => a.date - b.date);
+  };
+
+  const work = collapse(events.filter((e) => e.source === 'work'));
+  return work.length >= MIN_PAYDAYS_FOR_RHYTHM ? work : collapse(events);
+}
+
+// How much the user's monthly income swings, and what income to plan around.
+// reports = finished months (newest first or any order). targetTotal = sum of all category targets.
+// level: 'unknown' | 'steady' | 'variable' | 'volatile'.
+// planningIncome is a cautious month: average minus one standard deviation (never below 0).
+export function getIncomeStability(reports, targetTotal = 0) {
+  const months = (reports || []).map((r) => Number(r && r.totalIncome) || 0).filter((n) => n > 0);
+  const target = Number(targetTotal) || 0;
+  if (months.length < MIN_MONTHS_FOR_STABILITY) {
+    return { level: 'unknown', months: months.length, average: 0, stdDev: 0, variation: 0, planningIncome: 0, targetShortfall: 0, targetsFit: null };
+  }
+  const average = months.reduce((s, n) => s + n, 0) / months.length;
+  // Sample standard deviation (n - 1): with only a few months it is the cautious choice.
+  const variance = months.reduce((s, n) => s + (n - average) ** 2, 0) / (months.length - 1);
+  const stdDev = Math.sqrt(variance);
+  const variation = stdDev / average;
+  const level = variation <= STEADY_CV ? 'steady' : variation <= VARIABLE_CV ? 'variable' : 'volatile';
+  const planningIncome = Math.max(round(average - stdDev), 0);
+  return {
+    level,
+    months: months.length,
+    average: round(average),
+    stdDev: round(stdDev),
+    variation,
+    planningIncome,
+    targetShortfall: Math.max(target - planningIncome, 0),
+    targetsFit: target <= planningIncome,
+  };
+}
+
+// Learns the user's pay rhythm and predicts the next payment.
+// ok: false until there are MIN_PAYDAYS_FOR_RHYTHM pay days.
+// status: 'upcoming' (before the usual window) | 'due-soon' (inside it) | 'overdue' (past it).
+// confidence: 'low' | 'medium' | 'high', from how regular the gaps are and how many pay days we have seen.
+export function predictNextIncome(reports, transactions, now = new Date()) {
+  const paydays = getPaydays(reports, transactions);
+  if (paydays.length < MIN_PAYDAYS_FOR_RHYTHM) return { ok: false, paydays: paydays.length };
+
+  const gaps = [];
+  for (let i = 1; i < paydays.length; i += 1) gaps.push(dayDiff(paydays[i - 1].date, paydays[i].date));
+  const typicalGapDays = Math.max(round(median([...gaps].sort((a, b) => a - b))), 1);
+  const meanGap = gaps.reduce((s, g) => s + g, 0) / gaps.length;
+  const gapStdDev = Math.sqrt(gaps.reduce((s, g) => s + (g - meanGap) ** 2, 0) / gaps.length);
+  const spreadDays = Math.max(round(gapStdDev), 1);
+
+  const last = paydays[paydays.length - 1];
+  const daysSinceLast = Math.max(dayDiff(last.date, now), 0);
+  const expectedInDays = Math.max(typicalGapDays - daysSinceLast, 0);
+  const earliestInDays = Math.max(typicalGapDays - spreadDays - daysSinceLast, 0);
+  const latestInDays = Math.max(typicalGapDays + spreadDays - daysSinceLast, 0);
+
+  let status = 'upcoming';
+  if (daysSinceLast > typicalGapDays + spreadDays) status = 'overdue';
+  else if (daysSinceLast >= typicalGapDays - spreadDays) status = 'due-soon';
+
+  const regularity = gapStdDev / meanGap;
+  let confidence = 'low';
+  if (regularity <= 0.25 && paydays.length >= 6) confidence = 'high';
+  else if (regularity <= 0.6 && paydays.length >= 4) confidence = 'medium';
+
+  const amounts = paydays.slice(-RECENT_PAYDAYS).map((p) => p.amount).sort((a, b) => a - b);
+  const today = startOfDay(now);
+  return {
+    ok: true,
+    paydays: paydays.length,
+    typicalGapDays,
+    spreadDays,
+    lastDate: last.date,
+    daysSinceLast,
+    expectedInDays,
+    earliestInDays,
+    latestInDays,
+    expectedDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + expectedInDays),
+    status,
+    confidence,
+    typicalAmount: round(median(amounts)),
+    amountLow: round(percentile(amounts, 0.25)),
+    amountHigh: round(percentile(amounts, 0.75)),
+  };
+}
+
+// Everything the bot knows about the user's income timing and stability, in one object.
+export function getIncomeOutlook(ctx, now = new Date()) {
+  const totals = ctx.totals || {};
+  return {
+    stability: getIncomeStability(ctx.monthlyReports, totals.target),
+    next: predictNextIncome(ctx.monthlyReports, ctx.transactions, now),
+  };
+}
+
+// A cautious daily amount: free money spread until the LATEST likely payday, not the optimistic one.
+// With no usable prediction (or a payment that is already overdue) it falls back to the reset date.
+// basis: 'payday' | 'reset'.
+export function getCautiousAllowance(safe, next) {
+  const useRhythm = Boolean(next && next.ok && next.status !== 'overdue');
+  const days = useRhythm ? Math.max(next.latestInDays, 1) : Math.max(safe.daysLeft, 1);
+  return { days, perDay: safe.free > 0 ? safe.free / days : 0, basis: useRhythm ? 'payday' : 'reset' };
+}
+
+export function describeNextIncome(next) {
+  if (!next || !next.ok) {
+    const seen = next && next.paydays ? next.paydays : 0;
+    return `I need to see at least ${MIN_PAYDAYS_FOR_RHYTHM} pay days before I can spot your rhythm. You have logged ${plural(seen, 'pay day')} so far. Log every payment, even small ones.`;
+  }
+  const rhythm = `Money usually lands every ${plural(next.typicalGapDays, 'day')}, give or take ${plural(next.spreadDays, 'day')}.`;
+  const size = `Payments are usually ${formatRand(next.amountLow)} to ${formatRand(next.amountHigh)}, typically ${formatRand(next.typicalAmount)}.`;
+  const sure = `I am ${next.confidence === 'high' ? 'fairly sure' : next.confidence === 'medium' ? 'moderately sure' : 'not very sure yet'} about this.`;
+  if (next.status === 'overdue') {
+    return `${rhythm} It has been ${plural(next.daysSinceLast, 'day')} since your last payment, so one is overdue by my count. Go easy on spending until it lands. ${size}`;
+  }
+  const when =
+    next.expectedInDays === 0
+      ? 'is due about now'
+      : `is likely around ${formatShortDate(next.expectedDate)} (in about ${plural(next.expectedInDays, 'day')})`;
+  return `${rhythm} Your next payment ${when}. ${size} ${sure}`;
+}
+
+export function describeStability(stability) {
+  if (!stability || stability.level === 'unknown') {
+    return `After ${MIN_MONTHS_FOR_STABILITY} finished months I can tell you how steady your income is.`;
+  }
+  const words = { steady: 'fairly steady', variable: 'variable', volatile: 'very irregular' };
+  const swing = `Your income is ${words[stability.level]}: it swings about ${round(stability.variation * 100)}% from month to month.`;
+  const plan = `A cautious month to plan around is ${formatRand(stability.planningIncome)}.`;
+  const fit = stability.targetsFit
+    ? 'Your targets fit inside that, which is a solid base.'
+    : `Your targets are ${formatRand(round(stability.targetShortfall))} above that. Trim them or build a buffer in good months.`;
+  return `${swing} ${plan} ${fit}`;
+}
+
 // One-off money (gift, bonus, a big payment): a simple, safe way to split it.
 export function getWindfallAdvice(amount, rows) {
   const unpaidFixed = (rows || [])
@@ -235,6 +427,18 @@ export function getGreetingInsights(ctx, now = new Date()) {
     lines.push(
       `Your targets add up to more than your lowest month (${formatRand(round(pattern.lowest))}). Trim ${formatRand(round(pattern.shortfall))} or build a buffer.`
     );
+  }
+  const next = predictNextIncome(ctx.monthlyReports, ctx.transactions, now);
+  if (next.ok && next.confidence !== 'low') {
+    if (next.status === 'overdue') {
+      lines.push(`Your next payment is overdue by my count (usually every ${plural(next.typicalGapDays, 'day')}). Go easy on spending.`);
+    } else {
+      lines.push(
+        next.expectedInDays === 0
+          ? 'A payment is due about now, based on your usual rhythm.'
+          : `Your next payment is likely around ${formatShortDate(next.expectedDate)}.`
+      );
+    }
   }
   return lines.slice(0, 3);
 }
@@ -313,6 +517,30 @@ export function answerQuestion(question, ctx, now = new Date()) {
       'safe-to-spend',
       `About ${formatRand(round(safe.perDay))} a day is safe for the next ${safe.daysLeft} days. That is your balance of ${formatRand(round(safe.balance))}${safe.committed > 0 ? ` minus ${formatRand(round(safe.committed))} in bills still due` : ''}.`
     );
+  }
+
+  // 3b. Income rhythm: "When is my next payment?" / "Is my income stable?"
+  const asksNextIncome =
+    has(/\bnext (pay|payment|payday|income|gig|money)\b/) ||
+    has(/\b(payday|get paid|getting paid|paid next)\b/) ||
+    has(/when (will|do|does) .*(paid|payment|income|money) .*(come|land|arrive|in)\b/);
+  const asksStability = has(/\b(steady|stable|stability|volatile|volatility|swing|swings|predictable|consistent)\b/);
+  if (asksNextIncome || asksStability) {
+    const outlook = getIncomeOutlook(ctx, now);
+    if (asksNextIncome) {
+      let text = describeNextIncome(outlook.next);
+      if (outlook.next.ok) {
+        const safe = getSafeToSpend(rows, totals, progress);
+        if (safe.free > 0) {
+          const allowance = getCautiousAllowance(safe, outlook.next);
+          if (allowance.basis === 'payday') {
+            text += ` Until then, keep it under about ${formatRand(round(allowance.perDay))} a day (planning for it to land as late as ${plural(allowance.days, 'day')} from now).`;
+          }
+        }
+      }
+      return reply('next-income', text, outlook.next.ok ? null : { label: 'Add income', route: '/add-transaction?type=income' });
+    }
+    return reply('income-stability', describeStability(outlook.stability), { label: 'See breakdown', route: '/breakdown' });
   }
 
   // 4. Forecast
@@ -401,7 +629,7 @@ export function answerQuestion(question, ctx, now = new Date()) {
 
   // 12. Help / greeting
   if (has(/\b(help|hello|hi|hey|howzit|sawubona|molo|what can you)\b/)) {
-    return reply('help', 'Howzit! I can tell you what is safe to spend today, forecast your month, check if you can afford something, read your income pattern, suggest how to split a windfall, and explain how to spot scams.');
+    return reply('help', 'Howzit! I can tell you what is safe to spend today, forecast your month, predict when your next payment will land, check if you can afford something, read your income pattern, suggest how to split a windfall, and explain how to spot scams.');
   }
 
   return reply('fallback', 'I did not catch that. Try: "Can I afford R300?", "Will I go over budget?", "How is my income?" or "How do I spot a scam?"');

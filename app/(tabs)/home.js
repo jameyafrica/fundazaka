@@ -8,11 +8,12 @@ import { useT } from '../../i18n/LanguageContext';
 import { pickMotivation } from '../../constants/motivation';
 import { useScale } from '../../hooks/useScale';
 import { formatRand } from '../../utils/format';
-import { getHeroState } from '../../utils/dashboard';
+import { getHeroState, getNextPaymentCard } from '../../utils/dashboard';
 import { getNextRoute } from '../../utils/routing';
 import ScreenBackground from '../../components/ScreenBackground';
 import CategoryIcon from '../../components/CategoryIcon';
 import NavBar from '../../components/NavBar';
+import NextPaymentCard from '../../components/NextPaymentCard';
 
 import Avatar from '../../components/icons/DashboardAvatarUserTopLeft';
 import FnbLogo from '../../components/icons/DashboardIconFnbLogoHeroImage30';
@@ -28,7 +29,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const scale = useScale();
   const { t, tList } = useT();
-  const { user, displayName, onboardingCompleted, tourCompleted, resetPending, categoryRows, totals } = useBudget();
+  const { user, displayName, onboardingCompleted, tourCompleted, resetPending, categoryRows, totals, transactions, monthlyReports } = useBudget();
   const [selectedKey, setSelectedKey] = useState(null); // null = "Total" view
   const seed = useRef(Math.floor(Math.random() * 1000)).current;
 
@@ -41,6 +42,7 @@ export default function HomeScreen() {
 
   const selected = categoryRows.find((row) => row.key === selectedKey) || null;
   const hero = getHeroState(selected, totals);
+  const nextPayment = getNextPaymentCard(monthlyReports, transactions, new Date());
   const motivation = pickMotivation(hero.motivationKind, seed, {
     default: tList('motivation.default'),
     reached: tList('motivation.reached'),
@@ -135,6 +137,8 @@ export default function HomeScreen() {
               </Pressable>
             )}
           </View>
+
+          <NextPaymentCard card={nextPayment} onPress={() => router.push('/ai-bot')} />
 
           <View style={styles.pillBar}>
             {pillItems.map((item) => {

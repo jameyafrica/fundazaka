@@ -25,6 +25,7 @@ export const SUGGESTIONS = [
   'How much can I spend today?',
   'Will I go over budget?',
   'How is my income?',
+  'When is my next payment?',
   'How do I spot a scam?',
 ];
 
