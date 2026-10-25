@@ -202,27 +202,36 @@ export default function OnboardingExpensesScreen() {
     </>
   );
 
+  // Two rows per card: the icon and full-width name on top, then the target amount underneath,
+  // so long names such as "Debit Orders" never get squeezed onto several lines.
   const renderTargets = () =>
     orderedKeys.map((key) => {
       const Icon = ICONS[key];
       return (
-        <View key={key} style={styles.card}>
-          <View style={styles.cardIcon}>
-            <Icon width={36} height={36} />
+        <View key={key} style={styles.targetCard}>
+          <View style={styles.targetHeader}>
+            <View style={styles.cardIcon}>
+              <Icon width={36} height={36} />
+            </View>
+            <Text style={styles.cardTitle} numberOfLines={1} adjustsFontSizeToFit>
+              {t(`cat.${key}.title`)}
+            </Text>
           </View>
-          <Text style={[styles.cardTitle, styles.cardTitleFlex]}>{t(`cat.${key}.title`)}</Text>
-          <Text style={styles.targetLabel}>{t('ob.target')}</Text>
-          <View style={styles.amountBox}>
-            <Text style={styles.amountPrefix}>R</Text>
-            <TextInput
-              style={styles.amountInput}
-              value={targets[key] ?? ''}
-              onChangeText={(text) => setTargets((prev) => ({ ...prev, [key]: cleanAmount(text) }))}
-              keyboardType="decimal-pad"
-              placeholder="0"
-              placeholderTextColor={theme.colors.textMuted}
-              maxLength={9}
-            />
+          <View style={styles.targetRow}>
+            <Text style={styles.targetLabel}>{t('ob.target')}</Text>
+            <View style={styles.amountBox}>
+              <Text style={styles.amountPrefix}>R</Text>
+              <TextInput
+                style={styles.amountInput}
+                value={targets[key] ?? ''}
+                onChangeText={(text) => setTargets((prev) => ({ ...prev, [key]: cleanAmount(text) }))}
+                keyboardType="decimal-pad"
+                placeholder="0"
+                placeholderTextColor={theme.colors.textMuted}
+                maxLength={9}
+                accessibilityLabel={`${t(`cat.${key}.title`)} ${t('ob.target')}`}
+              />
+            </View>
           </View>
         </View>
       );
@@ -297,7 +306,8 @@ export default function OnboardingExpensesScreen() {
 
           {error !== '' && <Text style={styles.error}>{error}</Text>}
 
-          {step !== 'success' && (
+          {/* No Next arrow once the confirmation box is open: the person confirms or cancels there. */}
+          {step !== 'success' && step !== 'confirm' && (
             <View style={styles.footer}>
               <Pressable
                 onPress={onNext}
@@ -382,7 +392,17 @@ const styles = StyleSheet.create({
   },
   cardIcon: { width: 44, alignItems: 'center', marginRight: theme.spacing.sm },
   cardTitle: { flex: 1, color: theme.colors.text, fontFamily: theme.fonts.bodyBold, fontSize: 20 },
-  cardTitleFlex: { flex: 1 },
+  targetCard: {
+    marginBottom: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.radius.card,
+    borderWidth: 1,
+    borderColor: theme.colors.surfaceBorder,
+    backgroundColor: theme.colors.surface,
+  },
+  targetHeader: { flexDirection: 'row', alignItems: 'center' },
+  targetRow: { flexDirection: 'row', alignItems: 'center', marginTop: theme.spacing.sm + 2 },
   tick: {
     width: 26,
     height: 26,
@@ -395,24 +415,24 @@ const styles = StyleSheet.create({
   tickOn: { backgroundColor: theme.colors.accent, borderColor: theme.colors.accent },
   tickMark: { color: theme.colors.text, fontFamily: theme.fonts.bodyBold, fontSize: 15 },
   targetLabel: {
-    marginRight: theme.spacing.sm,
+    marginRight: theme.spacing.md,
     color: theme.colors.text,
     fontFamily: theme.fonts.bodyBold,
     fontSize: 15,
   },
   amountBox: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    width: 110,
-    height: 42,
-    paddingHorizontal: theme.spacing.sm + 2,
+    height: 46,
+    paddingHorizontal: theme.spacing.md,
     borderRadius: theme.radius.control,
     borderWidth: 1,
     borderColor: theme.colors.surfaceBorder,
     backgroundColor: 'rgba(0, 0, 0, 0.25)',
   },
-  amountPrefix: { color: theme.colors.text, fontFamily: theme.fonts.bodyBold, fontSize: 15, marginRight: 4 },
-  amountInput: { flex: 1, padding: 0, color: theme.colors.text, fontFamily: theme.fonts.bodySemiBold, fontSize: 15 },
+  amountPrefix: { color: theme.colors.text, fontFamily: theme.fonts.bodyBold, fontSize: 17, marginRight: 6 },
+  amountInput: { flex: 1, padding: 0, color: theme.colors.text, fontFamily: theme.fonts.bodySemiBold, fontSize: 17 },
   dayGrid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: theme.spacing.md },
   dayCell: { width: `${100 / 6}%`, padding: 4 },
   dayButton: {
