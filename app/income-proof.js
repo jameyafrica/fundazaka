@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect, useRouter } from 'expo-router';
 import { useBudget } from '../context/BudgetContext';
 import { theme } from '../constants/theme';
 import { useScale } from '../hooks/useScale';
 import { formatRand } from '../utils/format';
-import { buildIncomeProof, formatProofText } from '../utils/incomeProof';
+import { buildIncomeProof } from '../utils/incomeProof';
+import { shareProofPdf } from '../lib/shareProofPdf';
 import ScreenBackground from '../components/ScreenBackground';
 
 const DISCLAIMER =
@@ -28,6 +29,7 @@ export default function IncomeProofScreen() {
   const scale = useScale();
   const { user, displayName, monthlyReports } = useBudget();
   const [shareError, setShareError] = useState('');
+  const [sharing, setSharing] = useState(false);
 
   const proof = useMemo(() => buildIncomeProof(monthlyReports || [], new Date()), [monthlyReports]);
 
@@ -40,11 +42,16 @@ export default function IncomeProofScreen() {
   };
 
   const onShare = async () => {
+    if (sharing) return;
     setShareError('');
+    setSharing(true);
     try {
-      await Share.share({ title: 'Income summary', message: formatProofText(proof, displayName) });
+      await shareProofPdf(proof, displayName);
     } catch (e) {
-      setShareError('Sharing did not work. Please try again.');
+      console.warn('PDF share failed:', e);
+      setShareError('Could not create the PDF. Please try again.');
+    } finally {
+      setSharing(false);
     }
   };
 
@@ -117,11 +124,17 @@ export default function IncomeProofScreen() {
 
               <Pressable
                 onPress={onShare}
-                style={({ pressed }) => [styles.shareButton, pressed && styles.pressed]}
+                disabled={sharing}
+                style={({ pressed }) => [styles.shareButton, (pressed || sharing) && styles.pressed]}
                 accessibilityRole="button"
                 accessibilityLabel="Share income summary"
+                accessibilityState={{ disabled: sharing, busy: sharing }}
               >
-                <Text style={styles.shareText}>Share summary</Text>
+                {sharing ? (
+                  <ActivityIndicator color={theme.colors.text} />
+                ) : (
+                  <Text style={styles.shareText}>Share as PDF</Text>
+                )}
               </Pressable>
             </>
           )}

@@ -36,7 +36,8 @@
         {
           "faceIDPermission": "Fundazaka uses Face ID to keep your money information private."
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "extra": {
       "router": {
