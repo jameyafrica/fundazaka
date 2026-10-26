@@ -1,41 +1,24 @@
 <div align="center">
 
-# funda**zaka**
+<img src="docs/banner.svg" alt="Fundazaka: budgeting and money confidence for irregular income" width="100%">
 
-### Budgeting and money confidence for people whose income doesn't arrive on the 25th.
+<br>
 
-[![Expo](https://img.shields.io/badge/Expo-SDK%2058-041F21?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev)
-[![React Native](https://img.shields.io/badge/React%20Native-0.88-00B4A2?style=for-the-badge&logo=react&logoColor=white)](https://reactnative.dev)
-[![Supabase](https://img.shields.io/badge/Supabase-Auth-0A3638?style=for-the-badge&logo=supabase&logoColor=00B4A2)](https://supabase.com)
-[![Offline First](https://img.shields.io/badge/Offline-First-F97316?style=for-the-badge)](#-offline-first-by-design)
-[![Languages](https://img.shields.io/badge/Languages-5%20of%2011-00B4A2?style=for-the-badge)](#-languages)
-[![License](https://img.shields.io/badge/License-MIT-041F21?style=for-the-badge)](#-license)
+[![Expo](https://img.shields.io/badge/Expo-SDK%2058-00B4A2?style=for-the-badge&logo=expo&logoColor=white&labelColor=041F21)](https://expo.dev)
+[![React Native](https://img.shields.io/badge/React%20Native-0.88-00B4A2?style=for-the-badge&logo=react&logoColor=white&labelColor=041F21)](https://reactnative.dev)
+[![Supabase](https://img.shields.io/badge/Supabase-Auth-00B4A2?style=for-the-badge&logo=supabase&logoColor=white&labelColor=041F21)](https://supabase.com)
+[![Offline First](https://img.shields.io/badge/Offline-First-F97316?style=for-the-badge&labelColor=041F21)](#-offline-first-by-design)
+[![Languages](https://img.shields.io/badge/Languages-5%20of%2011-00B4A2?style=for-the-badge&labelColor=041F21)](#-languages)
+[![License](https://img.shields.io/badge/License-MIT-00B4A2?style=for-the-badge&labelColor=041F21)](#-license)
 
-**Built by team _Ship Happens_ (WeThinkCode\_, Cape Town) for the FNB hackathon**
-*Financial Inclusion and Money Confidence challenge*
+**Built by team _Ship Happens_ · WeThinkCode\_ · Cape Town 🇿🇦**
+*FNB hackathon · Financial Inclusion and Money Confidence challenge*
+
+[The Problem](#-the-problem) · [Features](#-features) · [Money Logic](#-how-the-money-logic-works) · [Privacy](#-privacy-and-security) · [Get Started](#-getting-started) · [Roadmap](#-roadmap)
 
 </div>
 
----
-
-## 📖 Table of Contents
-
-- [The Problem](#-the-problem)
-- [The Solution](#-the-solution)
-- [Features](#-features)
-- [How the Money Logic Works](#-how-the-money-logic-works)
-- [Offline-First by Design](#-offline-first-by-design)
-- [Privacy and Security](#-privacy-and-security)
-- [Languages](#-languages)
-- [Tech Stack](#-tech-stack)
-- [Getting Started](#-getting-started)
-- [Project Structure](#-project-structure)
-- [Testing](#-testing)
-- [Roadmap](#-roadmap)
-- [Team](#-team)
-- [License](#-license)
-
----
+<img src="docs/divider.svg" width="100%" alt="">
 
 ## 🎯 The Problem
 
@@ -43,43 +26,62 @@ Most budgeting apps assume a fixed monthly salary. In South Africa, millions of 
 
 ## 💡 The Solution
 
-**Fundazaka** ("funda" means *learn*, "zaka" means *save*) is a budgeting and financial-literacy app built from the ground up for **irregular income**:
+**Fundazaka** (*funda* means learn, *zaka* means save) is a budgeting and financial-literacy app built from the ground up for **irregular income**.
 
-- Log income **whenever it arrives**, in any amount, tagged by source.
-- Set **3 to 5 monthly targets** that match real life: rent, transport, debit orders, groceries and savings.
-- Get **plain-language guidance** from an offline assistant that works out what is safe to spend from your own numbers.
-- **Learn as you go** with bite-sized courses, quizzes and scam-awareness lessons, all bundled in the app.
+<table>
+  <tr>
+    <td width="25%" align="center"><h3>💸</h3><b>Log income when it lands</b><br><sub>Any amount, tagged work, gift or other.</sub></td>
+    <td width="25%" align="center"><h3>🎯</h3><b>3 to 5 real targets</b><br><sub>Rent, transport, debit orders, groceries, savings.</sub></td>
+    <td width="25%" align="center"><h3>🧠</h3><b>Zak, your offline guide</b><br><sub>Works out what is safe to spend from your own numbers.</sub></td>
+    <td width="25%" align="center"><h3>🎓</h3><b>Learn as you go</b><br><sub>Courses, quizzes and scam awareness, all bundled.</sub></td>
+  </tr>
+</table>
 
-Everything runs on the phone. No data bundle needed after install.
+> [!NOTE]
+> Everything runs on the phone. After install, Fundazaka needs no mobile data.
 
----
+<img src="docs/divider.svg" width="100%" alt="">
 
 ## ✨ Features
 
 ### 💰 Budgeting for irregular income
 
-| Feature | What it does |
-| --- | --- |
-| **Zak-Buckz** | Your running total of income logged. Updates the moment money arrives or leaves. |
-| **Income sources** | Tag every payment as `work`, `gift` or `other`. |
-| **Category targets** | Choose 3 to 5 of `rent`, `transport`, `debit`, `groceries`, `savings`, then set a Rand target for each. |
-| **Over-budget alerts** | Go past a target and the hero card and icon switch to an orange warning with the exact amount over. |
-| **Savings exception** | Savings never trigger the warning. Overshooting a savings goal is good news. The action button reads **Add Savings** instead of **Pay Expense**. |
-| **Custom reset day** | Pick any day from 1 to 30. In February, days 29 and 30 fall back to the last day of the month. |
-| **Monthly archive** | On reset day (or the next time the app opens), totals are archived into a monthly report, spending resets and you review your targets. |
-| **Undo** | Remove or edit a transaction and undo it straight away. |
+| | Feature | What it does |
+| :-: | --- | --- |
+| 🪙 | **Zak-Buckz** | Your running total of income logged. Updates the moment money arrives or leaves. |
+| 🏷 | **Income sources** | Tag every payment as `work`, `gift` or `other`. |
+| 📂 | **Category targets** | Choose 3 to 5 of `rent`, `transport`, `debit`, `groceries`, `savings`, then set a Rand target for each. |
+| 🟠 | **Over-budget alerts** | Go past a target and the hero card and icon turn orange, showing exactly how much you are over. |
+| 🌱 | **Savings exception** | Savings never trigger the warning, because overshooting a savings goal is good news. The button reads **Add Savings** instead of **Pay Expense**. |
+| 📅 | **Custom reset day** | Pick any day from 1 to 30. In February, 29 and 30 fall back to the last day of the month. |
+| 🗄 | **Monthly archive** | On reset day (or the next time you open the app), totals are archived into a report and you review your targets. |
+| ↩️ | **Undo** | Remove or edit a transaction, then undo it straight away. |
 
 ### 🧠 Zak Insights (offline, on-device)
 
-Zak is the in-app assistant. It uses rule-based forecasting over your own transactions and archived months. It is not machine learning and it makes no network calls.
+Zak is the in-app assistant. It uses rule-based forecasting over your own transactions and archived months. It is not machine learning, and it makes no network calls.
 
-- **Safe-to-spend today**: how much you can spend and still stay on track.
-- **Over-budget forecast**: whether your current pace will break a target.
-- **Windfall detection**: spots a payment much larger than usual and suggests a safe split, including a share for savings.
-- **Suggested targets at reset**: proposes smaller targets when they add up to more than a cautious month of income.
-- **Hero-card forecast**: a pace-based projection on the dashboard.
-- **Weekday spending pattern**: shows which days you tend to spend the most.
-- **Income outlook and next payment**: a view of how steady your income has been and when you usually get paid.
+<table>
+  <tr>
+    <td width="50%" valign="top">
+
+**🔮 Predict**
+- **Safe-to-spend today** that keeps you on track
+- **Over-budget forecast** from your current pace
+- **Hero-card forecast** right on the dashboard
+- **Weekday spending pattern** showing your costliest days
+
+</td>
+    <td width="50%" valign="top">
+
+**🛟 Protect**
+- **Windfall detection** that spots an unusually big payment and suggests a safe split
+- **Suggested targets** at reset when they add up to more than a cautious month of income
+- **Income outlook** and **next payment** estimates
+
+</td>
+  </tr>
+</table>
 
 ### 🧾 Proof of income
 
@@ -87,76 +89,76 @@ Gig workers are often asked for proof of income by landlords, lenders and retail
 
 ### 🎓 Gamified learning hub
 
-Four bundled courses with lessons, quizzes, daily streaks and badges:
+| 📘 Budgeting 101 | 🐖 Saving Matters | 💳 Wise Credit | 🛡 Smart Scam Awareness |
+| :-: | :-: | :-: | :-: |
+| Plan irregular income | Pay yourself first | Know what credit costs | Spot the tricks |
 
-1. **Budgeting 101**
-2. **Saving Matters**
-3. **Wise Credit**
-4. **Smart Scam Awareness**
+Lessons, quizzes, daily streaks and badges, all bundled in the app.
 
 ### 🛠 Everyday tools
 
-- **Calculator** with a full keypad.
-- **Breakdown report** with `All`, `Income` and `Expenses` filters, plus a toggle between the current month and archived months.
-- **Interactive onboarding tour** and rotating South African welcome greetings.
-- **Demo Mode**: one tap loads realistic South African irregular-income data, no sign-up needed.
+- 🧮 **Calculator** with a full keypad
+- 📊 **Breakdown report** with `All`, `Income` and `Expenses` filters, and a toggle between the current month and archived months
+- 🧭 **Interactive tour** and rotating South African welcome greetings
+- 🚀 **Demo Mode**: one tap loads realistic irregular-income data, no sign-up needed
 
----
+<img src="docs/divider.svg" width="100%" alt="">
 
 ## 🧮 How the Money Logic Works
 
-```
-ratio = spentAmount / targetAmount
-```
+<div align="center">
+<img src="docs/opacity-tiers.svg" alt="Opacity tiers from 30 to 100 percent, then the orange Over state" width="85%">
+</div>
+
+<br>
 
 | Rule | Behaviour |
 | --- | --- |
-| **Opacity tiers** | The category icon and progress indicator scale through `30%`, `41%`, `45%`, `46%`, `60%`, `80%` and `100%` as `ratio` rises. |
-| **Over state** | `spentAmount > targetAmount` on any category except `savings` switches to the orange theme. The label changes from **Balance** to **Over**. |
-| **Savings** | Never enters the Over state. Icon stays at `80%`. |
+| **Opacity tiers** | The category icon and progress indicator scale through `30%`, `41%`, `45%`, `46%`, `60%`, `80%` and `100%` as the ratio rises. |
+| **Over state** | `spentAmount > targetAmount` on any category except `savings` switches to the orange theme, and the label changes from **Balance** to **Over**. |
+| **Savings** | Never enters the Over state. The icon stays at `80%`. |
 | **Onboarding limit** | Fewer than 3 or more than 5 categories blocks progress with a clear message. |
 | **February fallback** | Reset day `29` or `30` becomes the last day of February (`28`, or `29` in a leap year). |
 | **Missed reset** | If the app was closed on reset day, the reset runs the next time it opens. |
 
 All of this lives in small, pure, tested functions in `utils/` (`budgetMath.js`, `resetDate.js`, `money.js` and others), separate from the UI.
 
----
+<img src="docs/divider.svg" width="100%" alt="">
 
 ## 📶 Offline-First by Design
 
 Target users have limited mobile data, so the app is built to need none.
 
-- **Bundled content**: courses, lessons, quizzes, greetings, badges and translations ship inside the app (`constants/`, `i18n/`).
-- **Local state**: all budget data is stored on the device.
-- **Offline assistant**: Zak Insights is pure JavaScript. No API calls, no data cost.
-- **Resilient launch**: if the network is slow or down, the app keeps you signed in and opens normally.
-- **Splash skipped after first launch**, so repeat opens are quick.
-
----
+- 📦 **Bundled content**: courses, lessons, quizzes, greetings, badges and translations ship inside the app
+- 💾 **Local state**: all budget data is stored on the device
+- 🧠 **Offline assistant**: Zak Insights is pure JavaScript, with no API calls and no data cost
+- 🛟 **Resilient launch**: on a slow or missing network, the app keeps you signed in and opens normally
+- ⚡ **Splash skipped after first launch**, so repeat opens are quick
 
 ## 🔐 Privacy and Security
 
-Money information is personal. Fundazaka is designed so that **your budget data stays on your phone**.
+Money information is personal, so Fundazaka is designed to keep **your budget data on your phone**.
 
-- **Encrypted at rest**: budget data is encrypted with AES-256-CTR (a fresh random IV for every write) before it reaches storage.
-- **Key in hardware-backed storage**: the encryption key is held in the iOS Keychain or Android Keystore through `expo-secure-store`, set to this device only. It never leaves the phone.
-- **App lock**: optional biometric lock with `expo-local-authentication`.
-- **Supabase is used for authentication only**: email and password login. Your income and expenses are not uploaded.
-- **Delete my data**: one action in Settings erases local data and stored login tokens.
-- **POPIA notice**: a plain-language privacy notice is shown at sign-up and in Settings.
-- **No sensitive identifiers**: the app never asks for bank account numbers, card numbers or ID numbers.
-- **Error boundary**: a crash shows a friendly recovery screen instead of a blank app.
+| | |
+| --- | --- |
+| 🔒 **Encrypted at rest** | AES-256-CTR with a fresh random IV for every write, applied before data reaches storage. |
+| 🗝 **Hardware-backed key** | The key lives in the iOS Keychain or Android Keystore via `expo-secure-store`, this device only. It never leaves the phone. |
+| 👆 **App lock** | Optional biometric lock with `expo-local-authentication`. |
+| 🪪 **Auth only** | Supabase handles email and password login. Your income and expenses are not uploaded. |
+| 🗑 **Delete my data** | One action in Settings erases local data and stored login tokens. |
+| 📜 **POPIA notice** | A plain-language privacy notice at sign-up and in Settings. |
+| 🚫 **No sensitive IDs** | The app never asks for bank account, card or ID numbers. |
+| 🧯 **Error boundary** | A crash shows a friendly recovery screen, not a blank app. |
 
-> **Note:** Fundazaka is a hackathon prototype built by WeThinkCode\_ students. It is **not an FNB product**, and FNB does not receive information through this app.
-
----
+> [!IMPORTANT]
+> Fundazaka is a hackathon prototype built by WeThinkCode\_ students. It is **not an FNB product**, and FNB does not receive information through this app.
 
 ## 🌍 Languages
 
-Fundazaka is being localised across South Africa's official languages, with a bundled `i18n/` layer and no extra dependencies.
+Fundazaka is being localised across South Africa's official languages, using a bundled `i18n/` layer with no extra dependencies.
 
 | Language | Code | Status |
-| --- | --- | --- |
+| --- | :-: | --- |
 | English | `en` | ✅ Complete |
 | Afrikaans | `af` | ✅ Included |
 | isiZulu | `zu` | ✅ Included |
@@ -164,38 +166,47 @@ Fundazaka is being localised across South Africa's official languages, with a bu
 | Sesotho | `st` | ✅ Included |
 | Remaining 6 official languages | | 🗺 Planned |
 
-The language choice is stored separately from budget data, so it survives sign-out. Translations are drafts and are **awaiting native-speaker review**. Corrections are very welcome (see [Contributing](#-contributing)).
+The language choice is stored separately from budget data, so it survives sign-out.
 
----
+> [!NOTE]
+> Translations are drafts and are **awaiting native-speaker review**. Corrections are very welcome.
+
+<img src="docs/divider.svg" width="100%" alt="">
 
 ## 🧰 Tech Stack
 
 | Layer | Technology |
 | --- | --- |
-| Framework | React Native 0.88 with **Expo SDK 58** |
-| Routing | **Expo Router** (file-based, `app/`) |
-| Language | JavaScript |
-| Auth | Supabase (`@supabase/supabase-js`) |
-| Local storage | AsyncStorage with AES-256-CTR encryption (`aes-js`) and `expo-secure-store` |
-| Animation and gestures | `react-native-reanimated`, `react-native-gesture-handler` |
-| Graphics | `react-native-svg` (icons and illustrations only) |
-| Gradients | `expo-linear-gradient` |
-| Security | `expo-local-authentication` |
-| Documents | `expo-print`, `expo-sharing`, `expo-file-system` |
-| Testing | Jest, `jest-expo`, React Native Testing Library |
-| Build | EAS Build |
+| **Framework** | React Native 0.88 with **Expo SDK 58** |
+| **Routing** | **Expo Router** (file-based, `app/`) |
+| **Language** | JavaScript |
+| **Auth** | Supabase (`@supabase/supabase-js`) |
+| **Local storage** | AsyncStorage, AES-256-CTR (`aes-js`), `expo-secure-store` |
+| **Motion** | `react-native-reanimated`, `react-native-gesture-handler` |
+| **Graphics** | `react-native-svg` (icons and illustrations only), `expo-linear-gradient` |
+| **Security** | `expo-local-authentication` |
+| **Documents** | `expo-print`, `expo-sharing`, `expo-file-system` |
+| **Testing** | Jest, `jest-expo`, React Native Testing Library |
+| **Build** | EAS Build |
 
-**Design system:** deep FNB-inspired teal background (`#041F21` to `#0A3638`), translucent glass cards, accent teal `#00B4A2`, alert orange `#F97316`. Logo set in **Advent Pro**, UI text in **Nunito**.
+### 🎨 Design system
 
----
+| Token | Value |
+| --- | --- |
+| Background | ![#041F21](https://img.shields.io/badge/%23041F21-041F21?style=flat-square) to ![#0A3638](https://img.shields.io/badge/%230A3638-0A3638?style=flat-square) deep teal gradient |
+| Accent teal | ![#00B4A2](https://img.shields.io/badge/%2300B4A2-00B4A2?style=flat-square) |
+| Over-budget orange | ![#F97316](https://img.shields.io/badge/%23F97316-F97316?style=flat-square) |
+| Cards | Translucent teal glass, `borderRadius: 20` |
+| Type | **Advent Pro** for the logo, **Nunito** for the interface |
+
+<img src="docs/divider.svg" width="100%" alt="">
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org) 20 or newer
-- npm
-- The [Expo Go](https://expo.dev/go) app, or an Android emulator / iOS simulator
+- [Node.js](https://nodejs.org) 20 or newer, and npm
+- The [Expo Go](https://expo.dev/go) app, or an Android emulator or iOS simulator
 - A free [Supabase](https://supabase.com) project (optional, since Demo Mode works without one)
 
 ### 1. Clone and install
@@ -208,8 +219,6 @@ npm install
 
 ### 2. Configure environment variables
 
-Copy the example file and fill in your own values:
-
 ```bash
 cp .env.example .env
 ```
@@ -219,11 +228,12 @@ EXPO_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 EXPO_PUBLIC_SUPABASE_KEY=your-publishable-key
 ```
 
-> ⚠️ **Only ever use the publishable (anon) key here.** `EXPO_PUBLIC_` variables are baked into the app bundle and are visible to anyone who has the app. **Never** put a Supabase *secret* or *service role* key in this project. `.env` is git-ignored.
+> [!WARNING]
+> **Only use the publishable (anon) key here.** `EXPO_PUBLIC_` variables are baked into the app bundle and visible to anyone who has the app. **Never** put a Supabase *secret* or *service role* key in this project. `.env` is git-ignored.
 
-In your Supabase dashboard, go to **Authentication → Sign In / Providers → Email** and turn **Confirm email** off so sign-up logs people in instantly.
+In the Supabase dashboard, go to **Authentication → Sign In / Providers → Email** and turn **Confirm email** off so sign-up logs people in instantly.
 
-No keys? The app still runs. Use **Quick Demo Login** on the login screen.
+No keys? The app still runs. Tap **Quick Demo Login** on the login screen.
 
 ### 3. Run
 
@@ -231,9 +241,7 @@ No keys? The app still runs. Use **Quick Demo Login** on the login screen.
 npx expo start -c
 ```
 
-Press `a` for Android, `i` for iOS, or scan the QR code with Expo Go.
-
-For biometric prompts such as Face ID, use a development build:
+Press `a` for Android, `i` for iOS, or scan the QR code with Expo Go. For biometric prompts such as Face ID, use a development build:
 
 ```bash
 npx expo run:android   # or: npx expo run:ios
@@ -245,11 +253,12 @@ npx expo run:android   # or: npx expo run:ios
 npx eas-cli@latest build --profile preview --platform android
 ```
 
-Set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_KEY` for the `preview` profile in `eas.json` or as EAS environment variables.
+Set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_KEY` for the `preview` profile in `eas.json`, or as EAS environment variables.
 
----
+<details>
+<summary><b>🗂 Project structure</b></summary>
 
-## 🗂 Project Structure
+<br>
 
 ```
 fundazaka/
@@ -273,33 +282,39 @@ fundazaka/
 ├── utils/                    # Pure domain logic (budget math, reset dates, insights)
 ├── hooks/                    # useScale and other hooks
 ├── scripts/                  # Quick logic and screen check scripts
+├── docs/                     # README graphics
 └── __tests__/                # Jest unit and component tests
 ```
 
-**Architecture in one line:** screens are thin and state-driven. Everything that matters to the money lives in `utils/` as pure functions, is exposed to screens through `useBudget()`, and is covered by tests.
+**Architecture in one line:** screens are thin and state-driven. Everything that matters to the money lives in `utils/` as pure functions, is exposed through `useBudget()`, and is covered by tests.
 
----
+</details>
 
-## 🧪 Testing
+<details>
+<summary><b>🧪 Testing</b></summary>
+
+<br>
 
 ```bash
-npm test              # run the full Jest suite
-npm run test:watch    # watch mode
+npm test                       # run the full Jest suite
+npm run test:watch             # watch mode
 node scripts/check-logic.mjs   # quick sanity check of the core logic
 ```
 
-The suite covers the domain rules and the main screens, including:
+The suite covers:
 
-- budget maths, opacity tiers and the over-budget and savings rules
+- budget maths, opacity tiers, and the over-budget and savings rules
 - reset dates, the February fallback and monthly archiving
 - onboarding category limits and validation
 - transactions, undo, windfall detection and target suggestions
 - insights, forecasting and weekday patterns
 - encryption, app lock, data deletion and state sanitising
 - i18n and localised screens
-- learning hub and quizzes
+- the learning hub and quizzes
 
----
+</details>
+
+<img src="docs/divider.svg" width="100%" alt="">
 
 ## 🗺 Roadmap
 
@@ -310,8 +325,6 @@ The suite covers the domain rules and the main screens, including:
 - [ ] Bank-linked income detection through an FNB integration
 - [ ] Accessibility audit (screen readers, font scaling, contrast)
 
----
-
 ## 🤝 Contributing
 
 1. Create a feature branch from `main`, for example `feat/your-feature`.
@@ -319,28 +332,26 @@ The suite covers the domain rules and the main screens, including:
 3. Run `npm test` before opening a pull request.
 4. Open a PR for review. Nothing goes straight to `main`.
 
-**Security reminder:** never commit `.env` files or any secret keys. If you find a vulnerability, please contact the team privately instead of opening a public issue.
-
----
+> [!CAUTION]
+> Never commit `.env` files or secret keys. If you find a vulnerability, please contact the team privately instead of opening a public issue.
 
 ## 👥 Team
 
-**Ship Happens**, students of **WeThinkCode\_**, Cape Town, South Africa 🇿🇦
-
+**Ship Happens** · students of **WeThinkCode\_**, Cape Town, South Africa 🇿🇦
 Built for the FNB hackathon, *Financial Inclusion and Money Confidence* challenge.
-
----
 
 ## 📄 License
 
 Released under the [MIT License](LICENSE).
 
----
+<br>
 
 <div align="center">
 
+<img src="docs/divider.svg" width="100%" alt="">
+
 **Your wallet says howzit!** 👋
 
-*Made with ❤️ in Cape Town*
+<sub>Made with ❤️ in Cape Town</sub>
 
 </div>
